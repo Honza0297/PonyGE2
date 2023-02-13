@@ -18,7 +18,7 @@ import pandas as pd
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
-plt.rc('font', family='Times New Roman')
+#plt.rc('font', family='Times New Roman')
 
 
 def help_message():
