@@ -352,11 +352,7 @@ def set_params(command_line_args, create_files=True):
                     raise Exception(s)
 
         # Parse grammar file and set grammar class.
-        if not params['ATTRIBUTE_GRAMMAR']:  # TODO necham tak nebo bude jen grammar a rozhodovat se to bude az v ni?
-            params['BNF_GRAMMAR'] = grammar.Grammar(
-                path.join("..", "grammars", params['GRAMMAR_FILE']))
-        else:
-            params['BNF_GRAMMAR'] = grammar.AttributeGrammar(
+        params['BNF_GRAMMAR'] = grammar.Grammar(
                 path.join("..", "grammars", params['GRAMMAR_FILE']))
 
         # If OPTIMIZE_CONSTANTS, check that the grammar is suitable

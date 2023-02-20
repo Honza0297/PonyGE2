@@ -41,12 +41,12 @@ class Grammar(object):
         # Set regular expressions for parsing BNF grammar.
         if params["ATTRIBUTE_GRAMMAR"]:
             # WARNING { cannot be a valid nonterminal in case of attribute grammar
-            self.ruleregex = '(?P<rulename><\S+>)\s*::=\s*(?P<production>(?:(?=\#)\#[^\r\n]*|(?!<\S+>\s*::=|\{).+?)+)(?P<attr_code>(?:\{.*\})+)'
-            self.attrcoderegex = ''
+            self.ruleregex = '(?P<rulename><\S+>)\s*::=\s*(?P<production>(?:(?=\#)\#[^\r\n]*|(?!<\S+>\s*::=|\{).+?)+)\s*(?P<attr_code>(?:(?!<\S+>\s*::=)(?:\s*\|?\{.*?\})+))'
+            self.productionregex = '(?=\#)(?:\#.*$)|(?!\#)\s*(?P<production>(?:[^\'\"\|\#\{\s]+?[^\'\"\|\#\{]*[^\'\"\|\#\{\s]*|\'.*?\'|".*?")+?)|\s*(?!\#)(?P<attr_code>(?:\{(?:.*?\s*?]*)*\})+)'
+            self.attrcoderegex = '(?P<nontermattr>\<.*?\>\.[^\s\}]+)'
         else:
             self.ruleregex = '(?P<rulename><\S+>)\s*::=\s*(?P<production>(?:(?=\#)\#[^\r\n]*|(?!<\S+>\s*::=).+?)+)'
-
-        self.productionregex = '(?=\#)(?:\#.*$)|(?!\#)\s*(?P<production>(?:[^\'\"\|\#]+|\'.*?\'|".*?")+)'
+            self.productionregex = '(?=\#)(?:\#.*$)|(?!\#)\s*(?P<production>(?:[^\'\"\|\#]+|\'.*?\'|".*?")+)'   
         self.productionpartsregex = '\ *([\r\n]+)\ *|([^\'"<\r\n]+)|\'(.*?)\'|"(.*?)"|(?P<subrule><[^>|\s]+>)|([<]+)'
 
         # to speed up the recursion step
@@ -109,7 +109,7 @@ class Grammar(object):
             # NOTE Tady se parsuji pravidla
             for rule in finditer(self.ruleregex, content, DOTALL):  # v contentu najde vsechny matches daneho regexu a vrati je jako iterator
                 # Find all rules in the grammar
-
+                print(rule)
                 # nastavím startovní SYMBOL, i když se to jmenuje start_rule
                 if self.start_rule is None:
                     # Set the first rule found as the start rule.
@@ -190,7 +190,7 @@ class Grammar(object):
                         # don't try to process this production further
                         # (but later productions in same rule will work)
                         continue
-
+                    print(p.group('production'))
                     for sub_p in finditer(self.productionpartsregex,
                                           p.group('production').strip()):
                         # Split production into terminal and non terminal
