@@ -373,6 +373,10 @@ def parse_cmd_args(arguments):
                         dest='GRAMMAR_FILE',
                         type=str,
                         help='Sets the grammar to be used, requires string.')
+    parser.add_argument('--attribute_grammar',
+                        dest='ATTRIBUTE_GRAMMAR',
+                        type=bool,
+                        help='Sets whether attribute grammar is used, requires a bool (True/False).')
     parser.add_argument('--experiment_name',
                         dest='EXPERIMENT_NAME',
                         type=str,

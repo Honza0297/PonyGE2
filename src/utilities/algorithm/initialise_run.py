@@ -93,7 +93,7 @@ def set_param_imports():
 
             for op in ops[special_ops]:
 
-                if special_ops == "fitness":
+                if special_ops == "fitness":  # NOTE: Tady asi budu importovat speciální fitness funkci
                     # Fitness functions represent a special case.
 
                     get_fit_func_imports()

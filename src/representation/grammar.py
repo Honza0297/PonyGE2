@@ -33,18 +33,26 @@ class Grammar(object):
         # each derivation tree depth.
         self.rules, self.permutations = {}, {}
 
-        # Initialise dicts for terminals and non terminals, set params.
+        # Initialise dicts for terminals and non-terminals, set params.
         self.non_terminals, self.terminals = {}, {}
         self.start_rule, self.codon_size = None, params['CODON_SIZE']
         self.min_path, self.max_arity, self.min_ramp = None, None, None
 
         # Set regular expressions for parsing BNF grammar.
-        self.ruleregex = '(?P<rulename><\S+>)\s*::=\s*(?P<production>(?:(?=\#)\#[^\r\n]*|(?!<\S+>\s*::=).+?)+)'
+        if params["ATTRIBUTE_GRAMMAR"]:
+            # WARNING { cannot be a valid nonterminal in case of attribute grammar
+            self.ruleregex = '(?P<rulename><\S+>)\s*::=\s*(?P<production>(?:(?=\#)\#[^\r\n]*|(?!<\S+>\s*::=|\{).+?)+)(?P<attr_code>(?:\{.*\})+)'
+            self.attrcoderegex = ''
+        else:
+            self.ruleregex = '(?P<rulename><\S+>)\s*::=\s*(?P<production>(?:(?=\#)\#[^\r\n]*|(?!<\S+>\s*::=).+?)+)'
+
         self.productionregex = '(?=\#)(?:\#.*$)|(?!\#)\s*(?P<production>(?:[^\'\"\|\#]+|\'.*?\'|".*?")+)'
         self.productionpartsregex = '\ *([\r\n]+)\ *|([^\'"<\r\n]+)|\'(.*?)\'|"(.*?)"|(?P<subrule><[^>|\s]+>)|([<]+)'
 
         # to speed up the recursion step
         self.recursion_cache = {}
+
+
 
         # Read in BNF grammar, set production rules, terminals and
         # non-terminals.
@@ -97,15 +105,18 @@ class Grammar(object):
         with open(file_name, 'r') as bnf:
             # Read the whole grammar file.
             content = bnf.read()
-
-            for rule in finditer(self.ruleregex, content, DOTALL):
+            # TODO SEM UMISTIT PREPROCESOR!
+            # NOTE Tady se parsuji pravidla
+            for rule in finditer(self.ruleregex, content, DOTALL):  # v contentu najde vsechny matches daneho regexu a vrati je jako iterator
                 # Find all rules in the grammar
 
+                # nastavím startovní SYMBOL, i když se to jmenuje start_rule
                 if self.start_rule is None:
                     # Set the first rule found as the start rule.
                     self.start_rule = {"symbol": rule.group('rulename'),
                                        "type": "NT"}
 
+                # NOTE: vytvořím si novou položku do nonterminálů
                 # Create and add a new rule.
                 self.non_terminals[rule.group('rulename')] = {
                     'id': rule.group('rulename'),
@@ -652,3 +663,4 @@ class Grammar(object):
     def __str__(self):
         return "%s %s %s %s" % (self.terminals, self.non_terminals,
                                 self.rules, self.start_rule)
+
