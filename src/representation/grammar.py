@@ -75,11 +75,10 @@ class Grammar(object):
         # Calculate the total number of derivation tree permutations and
         # combinations that can be created by a grammar at a range of depths.
         self.check_permutations()
-
+        print(hasattr(params['INITIALISATION'], "ramping"))
         if params['MIN_INIT_TREE_DEPTH']:
             # Set the minimum ramping tree depth from the command line.
             self.min_ramp = params['MIN_INIT_TREE_DEPTH']
-
         elif hasattr(params['INITIALISATION'], "ramping"):
             # Set the minimum depth at which ramping can start where we can
             # have unique solutions (no duplicates).
@@ -105,7 +104,6 @@ class Grammar(object):
         with open(file_name, 'r') as bnf:
             # Read the whole grammar file.
             content = bnf.read()
-            # TODO SEM UMISTIT PREPROCESOR!
             # NOTE Tady se parsuji pravidla
             for rule in finditer(self.ruleregex, content, DOTALL):  # v contentu najde vsechny matches daneho regexu a vrati je jako iterator
                 # Find all rules in the grammar
@@ -123,7 +121,9 @@ class Grammar(object):
                     'min_steps': maxsize,
                     'expanded': False,
                     'recursive': True,
-                    'b_factor': 0}
+                    'b_factor': 0, }
+                if params["ATTRIBUTE_GRAMMAR"]:
+                    self.non_terminals[rule.group('rulename')]['attributes'] = {}
 
                 # Initialise empty list of all production choices for this
                 # rule.
@@ -131,6 +131,7 @@ class Grammar(object):
 
                 for p in finditer(self.productionregex,
                                   rule.group('production'), MULTILINE):
+
                     # Iterate over all production choices for this rule.
                     # Split production choices of a rule.
 
@@ -190,7 +191,9 @@ class Grammar(object):
                         # don't try to process this production further
                         # (but later productions in same rule will work)
                         continue
-                    print(p.group('production'))
+
+
+
                     for sub_p in finditer(self.productionpartsregex,
                                           p.group('production').strip()):
                         # Split production into terminal and non terminal
@@ -225,6 +228,8 @@ class Grammar(object):
                             terminalparts += ''.join(
                                 [part.encode().decode('unicode-escape') for
                                  part in sub_p.groups() if part])
+
+
 
                     if terminalparts is not None:
                         # Terminal symbol is to be appended to the terminals
@@ -261,6 +266,54 @@ class Grammar(object):
                     # Conflicting rules with the same name.
                     raise ValueError("lhs should be unique",
                                      rule.group('rulename'))
+
+                # ! MOVE ME EHRE
+                # NOTE
+                # NOTE Můj úkol je následující:
+                # NOTE 1) Ke každému nonterminálu ze self.nonterminals přilepit všechny jeho atributy a jejich hodnoty (standardně None)
+                # NOTE 2) Ke každé choice každého pravidla ze self.rules přilepit bloček kódu, který jí odpovídá.
+                # NOTE 3) Dále vymyslet, jak se s tím bude pracovat - někde vznikají stromky, tak asi tam.
+                # NOTE Odhad: 1) a 2) za 3 hodiny, 3) 16 hodin.
+                # NOTE Deadline: konec týdne
+
+
+                if params["ATTRIBUTE_GRAMMAR"]:
+                  for attr_code in finditer(self.attrcoderegex, rule.group("attr_code"), MULTILINE):
+                      pass
+
+
+
+
+                """" # ??!?!?!?!?
+                    if params["ATTRIBUTE_GRAMMAR"]:
+    
+                        try:
+                            current_attr_code = attr_codes_iterator.__next__()
+                        except StopIteration:
+                            print("ERR?")
+                            # NOTE : Tady potřebuju
+                            # 1) ke každému pravidlu (choice) přilepit bloček kódu (done?)
+                            # 2) ke každému nonterminálu přilepit jeho atributy a hodnoty ve formě key = atribute : value = hodnota
+                            # ! Odtud resit dal attr codes, odsud hore vyreseno - snad
+                            # NOTE Napad: co v teto fazi pripravit slovnicek s nonterminaly a jejich atributy a potom je
+                            # NOTE        v prubehu reseni nonterminalu lepit na sva mista? Za me asi fajny pristup
+                            if params["ATTRIBUTE_GRAMMAR"]:
+                                tmp_attrs = {}
+                                for NT_attr in finditer(self.attrcoderegex, current_attr_code.string):
+                                    # ? NT_attr bude mist strukturu <NT>.attr nebo <NT_x>.attr, kde _x je index daneho attr v pravidle
+                                    # Split int NT and attr and remove optional index in NT (<A_1> -> <A>)
+                                    NT = NT_attr.group(0).split(".")[0].split("_")[0].split(">")[0] + ">"
+                                    attr = NT_attr.group(0).split(".")[1]
+                                    if NT not in tmp_attrs.keys():
+                                        tmp_attrs[NT] = list()
+                                    tmp_attrs[NT].append(attr)
+                                    # Add attributes to the nonterminal structures (only for NTs in self.non_terminals)
+                            if params["ATTRIBUTE_GRAMMAR"]:
+                                for NT in self.non_terminals.keys():
+                                    if NT in tmp_attrs.keys():
+                                        for attr in tmp_attrs[NT]:
+                                            # Just introducing the names, values are None by now
+                                    self.non_terminals[NT]['attributes'][attr] = None"""
 
     def check_depths(self):
         """

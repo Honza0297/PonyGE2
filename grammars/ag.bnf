@@ -1,9 +1,11 @@
 <S> ::= <A><B>
-{<S>.val = <A>.val+<B>.val}
+	{ <S>.val = <A>.val + <B>.val }
 
-<A> ::= a 
-{<A>.val=1; }
+<A> ::= a | a<A><B>
+	{ <A>.val = 1 }
+	| { <A_1>.val = <A_2>.val + <B>.val }
 
-<B> ::= <B>b | b
-{ <B_1>.val = <B_2>.val }
-|{<B>.val = 1}
+<B> ::= <B>b | b | <A><A>
+	{ <B_1>.val = <B_2>.val }
+	| { <B>.val = 1 }
+	| { <B>.val = <A>.val * <A>.val }
