@@ -19,7 +19,6 @@ import sys
 def mane():
     """ Run program """
     set_params(sys.argv[1:])  # exclude the ponyge.py arg itself
-    print("jalt")
     # Run evolution
     individuals = params['SEARCH_LOOP']()
 

@@ -296,8 +296,7 @@ def pi_grow(tree, max_depth):
     """
 
     # Initialise derivation queue.
-    queue = [[tree, ret_true(params['BNF_GRAMMAR'].non_terminals[
-                                 tree.root]['recursive'])]]
+    queue = [[tree, ret_true(params['BNF_GRAMMAR'].non_terminals[tree.root]['recursive'])]]
 
     # Initialise empty genome. With PI operators we can't use a depth-first
     # traversal of the tree to build the genome, we need to build it as we
@@ -327,8 +326,7 @@ def pi_grow(tree, max_depth):
         # Set remaining depth.
         remaining_depth = max_depth - node.depth
 
-        if (overall_depth < max_depth) or \
-                (recursive and (not any([item[1] for item in queue]))):
+        if (overall_depth < max_depth) or (recursive and (not any([item[1] for item in queue]))):
             # We want to prevent the tree from creating terminals until a
             # single branch has reached the full depth. Only select recursive
             # choices.
@@ -357,6 +355,10 @@ def pi_grow(tree, max_depth):
 
         # Initialise empty list of children for current node.
         node.children = []
+
+        # copy attribute code if attribute grammar is used
+        if params["ATTRIBUTE_GRAMMAR"]:
+            node.attr_code = chosen_prod["attr_code"]
 
         for i, symbol in enumerate(chosen_prod['choice']):
             # Iterate over all symbols in the chosen production.

@@ -357,9 +357,11 @@ def generate_PI_ind_tree(max_depth):
     """
 
     # Initialise an instance of the tree class
+    # !  Totok je important
     ind_tree = Tree(str(params['BNF_GRAMMAR'].start_rule["symbol"]), None)
 
     # Generate a tree
+    # ! A tu se děje magie
     genome, output, nodes, depth = pi_grow(ind_tree, max_depth)
 
     # Get remaining individual information

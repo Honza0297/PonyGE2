@@ -7,7 +7,7 @@ class Tree:
         """
         Initialise an instance of the tree class.
         
-        :param expr: A non-terminal from the params['BNF_GRAMMAR'].
+        :param expr: A symbol from the params['BNF_GRAMMAR'].
         :param parent: The parent of the current node. None if node is tree
         root.
         """
@@ -18,6 +18,15 @@ class Tree:
         self.root = expr
         self.children = []
         self.snippet = None
+
+        if params["ATTRIBUTE_GRAMMAR"]:
+            # Either error or terminal symbol, which is more prabable
+            if expr not in params["BNF_GRAMMAR"].non_terminals.keys():
+                self.root_attributes = None
+            else:
+                self.root_attributes = params["BNF_GRAMMAR"].non_terminals[expr]["attributes"]
+
+            self.attr_code = None
 
     def __str__(self):
         """
@@ -61,6 +70,10 @@ class Tree:
         tree_copy.codon, tree_copy.depth = self.codon, self.depth
 
         tree_copy.snippet = self.snippet
+
+        # TODO is it working?
+        if params["ATTRIBUTE_GRAMMAR"]:
+            tree_copy.attr_code = self.attr_code
 
         for child in self.children:
             # Recurse through all children.
