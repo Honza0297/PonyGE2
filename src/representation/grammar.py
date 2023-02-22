@@ -41,7 +41,7 @@ class Grammar(object):
         # Set regular expressions for parsing BNF grammar.
         if params["ATTRIBUTE_GRAMMAR"]:
             # WARNING { cannot be a valid nonterminal in case of attribute grammar
-            self.ruleregex = '(?P<rulename><\S+>)\s*::=\s*(?P<production>(?:(?=\#)\#[^\r\n]*|(?!<\S+>\s*::=|\{).+?)+)\s*(?P<attr_code>(?:(?!<\S+>\s*::=)(?:\s*\|?\{.*?\})+))'
+            self.ruleregex = '(?P<rulename><\S+>)\s*::=\s*(?P<production>(?:(?=\#)\#[^\r\n]*|(?!<\S+>\s*::=|\{).+?)+)\s*(?P<attr_code>(?:(?!<\S+>\s*::=)(?:\s*\|?\s*\{.*?\})+))'
             self.productionregex = '(?=\#)(?:\#.*$)|(?!\#)\s*(?P<production>(?:[^\'\"\|\#\{\s]+?[^\'\"\|\#\{]*[^\'\"\|\#\{\s]*|\'.*?\'|".*?")+?)|\s*(?!\#)(?P<attr_code>(?:\{(?:.*?\s*?]*)*\})+)'
             self.attrcoderegex = '(?P<nontermattr>\<.*?\>\.[^\s\}]+)'
         else:
@@ -105,7 +105,7 @@ class Grammar(object):
             # Read the whole grammar file.
             content = bnf.read()
             # NOTE Tady se parsuji pravidla
-            for rule in finditer(self.ruleregex, content, DOTALL):  # v contentu najde vsechny matches daneho regexu a vrati je jako iterator
+            for rule in finditer(self.ruleregex, content, DOTALL):  # v contentu najde vsechny matches daneho regexu (=pravidla) a vrati je jako iterator
                 # Find all rules in the grammar
                 print(rule)
                 # nastavím startovní SYMBOL, i když se to jmenuje start_rule
@@ -116,14 +116,7 @@ class Grammar(object):
 
                 # NOTE: vytvořím si novou položku do nonterminálů
                 # Create and add a new rule.
-                self.non_terminals[rule.group('rulename')] = {
-                    'id': rule.group('rulename'),
-                    'min_steps': maxsize,
-                    'expanded': False,
-                    'recursive': True,
-                    'b_factor': 0, }
-                if params["ATTRIBUTE_GRAMMAR"]:
-                    self.non_terminals[rule.group('rulename')]['attributes'] = {}
+                self.init_new_non_terminal(rule.group('rulename'))
 
                 # Initialise empty list of all production choices for this
                 # rule.
@@ -267,53 +260,31 @@ class Grammar(object):
                     raise ValueError("lhs should be unique",
                                      rule.group('rulename'))
 
-                # ! MOVE ME EHRE
                 # NOTE
                 # NOTE Můj úkol je následující:
-                # NOTE 1) Ke každému nonterminálu ze self.nonterminals přilepit všechny jeho atributy a jejich hodnoty (standardně None)
-                # NOTE 2) Ke každé choice každého pravidla ze self.rules přilepit bloček kódu, který jí odpovídá.
+                # NOTE 1) Ke každému nonterminálu ze self.nonterminals přilepit všechny jeho atributy a jejich hodnoty (standardně None) DONE!!!
+                # NOTE 2) Ke každé choice každého pravidla ze self.rules přilepit bloček kódu, který jí odpovídá. #! DONE
                 # NOTE 3) Dále vymyslet, jak se s tím bude pracovat - někde vznikají stromky, tak asi tam.
                 # NOTE Odhad: 1) a 2) za 3 hodiny, 3) 16 hodin.
                 # NOTE Deadline: konec týdne
 
-
+                # Add attributes and code parts to the apropriate places
                 if params["ATTRIBUTE_GRAMMAR"]:
-                  for attr_code in finditer(self.attrcoderegex, rule.group("attr_code"), MULTILINE):
-                      pass
+                    index = 0
+                    # for every code block in the rule
+                    for attr_code_block in finditer(self.productionregex, rule.group("attr_code"), MULTILINE):
+                        # add the whole code block (with parenttheses) to a corresponding choice
+                        self.rules[rule.group('rulename')]["choices"][index]["attr_code"] = \
+                            attr_code_block.group(0)
+                        index += 1
+                        for NT in finditer(self.attrcoderegex, attr_code_block.group(0)):
+                            NT_name = NT.group(0).split(".")[0].split("_")[0].split(">")[0] + ">"
+                            NT_attr = NT.group(0).split(".")[1]
+                            if not NT_name in self.non_terminals.keys():
+                                self.init_new_non_terminal(NT_name)
+                            self.non_terminals[NT_name]["attributes"][NT_attr] = None
 
 
-
-
-                """" # ??!?!?!?!?
-                    if params["ATTRIBUTE_GRAMMAR"]:
-    
-                        try:
-                            current_attr_code = attr_codes_iterator.__next__()
-                        except StopIteration:
-                            print("ERR?")
-                            # NOTE : Tady potřebuju
-                            # 1) ke každému pravidlu (choice) přilepit bloček kódu (done?)
-                            # 2) ke každému nonterminálu přilepit jeho atributy a hodnoty ve formě key = atribute : value = hodnota
-                            # ! Odtud resit dal attr codes, odsud hore vyreseno - snad
-                            # NOTE Napad: co v teto fazi pripravit slovnicek s nonterminaly a jejich atributy a potom je
-                            # NOTE        v prubehu reseni nonterminalu lepit na sva mista? Za me asi fajny pristup
-                            if params["ATTRIBUTE_GRAMMAR"]:
-                                tmp_attrs = {}
-                                for NT_attr in finditer(self.attrcoderegex, current_attr_code.string):
-                                    # ? NT_attr bude mist strukturu <NT>.attr nebo <NT_x>.attr, kde _x je index daneho attr v pravidle
-                                    # Split int NT and attr and remove optional index in NT (<A_1> -> <A>)
-                                    NT = NT_attr.group(0).split(".")[0].split("_")[0].split(">")[0] + ">"
-                                    attr = NT_attr.group(0).split(".")[1]
-                                    if NT not in tmp_attrs.keys():
-                                        tmp_attrs[NT] = list()
-                                    tmp_attrs[NT].append(attr)
-                                    # Add attributes to the nonterminal structures (only for NTs in self.non_terminals)
-                            if params["ATTRIBUTE_GRAMMAR"]:
-                                for NT in self.non_terminals.keys():
-                                    if NT in tmp_attrs.keys():
-                                        for attr in tmp_attrs[NT]:
-                                            # Just introducing the names, values are None by now
-                                    self.non_terminals[NT]['attributes'][attr] = None"""
 
     def check_depths(self):
         """
@@ -716,4 +687,15 @@ class Grammar(object):
     def __str__(self):
         return "%s %s %s %s" % (self.terminals, self.non_terminals,
                                 self.rules, self.start_rule)
+
+    def init_new_non_terminal(self, non_terminal):
+        if not non_terminal in self.non_terminals.keys():
+            self.non_terminals[non_terminal] = {
+                'id': non_terminal,
+                'min_steps': maxsize,
+                'expanded': False,
+                'recursive': True,
+                'b_factor': 0, }
+            if params["ATTRIBUTE_GRAMMAR"]:
+                self.non_terminals[non_terminal]['attributes'] = {}
 

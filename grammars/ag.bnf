@@ -1,5 +1,7 @@
-<S> ::= <A><B>
-	{ <S>.val = <A>.val + <B>.val }
+<S> ::= <S><A><B> | <B><A>
+	{ <S_1>.val = <A>.val + <B>.val + <S_2>.val }
+	| { <S>.val = <A>.val + <B>.val
+	    <S>.val2 = 666 }
 
 <A> ::= a | a<A><B>
 	{ <A>.val = 1 }
