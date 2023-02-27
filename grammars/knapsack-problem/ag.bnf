@@ -1,0 +1,24 @@
+<S> ::= <K> 
+	{ <K>.w = 0 
+	  <K>.c = 12
+	}
+
+<K> ::= <I> | <I><K> 
+	{
+ 	 error() if <I>.item in <K>.items else ok()
+	 <K>.w += <I>.w
+	 error() if <K>
+	 <K>.v += <I>.v
+	 <K>.items.add(<I>.item)
+        }
+	|
+	{
+	 error() if <I>.item in <K_2>.items else ok()
+	 <K_1>.items = <K_2>.items
+	 <K_1>.items.add(<I>.item)
+      	 <K_1>.w = <K_2>.w + <I>.w
+	 error() if <K_1>.w > <K_1>.c else ok()
+	 
+	}
+	 
+        
