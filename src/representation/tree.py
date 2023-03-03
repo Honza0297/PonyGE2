@@ -1,5 +1,5 @@
 from algorithm.parameters import params
-
+from representation.attributes import AttrCode, NontermAttrs
 
 class Tree:
 
@@ -20,13 +20,8 @@ class Tree:
         self.snippet = None
 
         if params["ATTRIBUTE_GRAMMAR"]:
-            # Either error or terminal symbol, which is more prabable
-            if expr not in params["BNF_GRAMMAR"].non_terminals.keys():
-                self.root_attributes = None
-            else:
-                self.root_attributes = params["BNF_GRAMMAR"].non_terminals[expr]["attributes"]
-
-            self.attr_code = None
+            self.attr_code = AttrCode(None, self)
+            self.valid = True
 
     def __str__(self):
         """
@@ -71,7 +66,6 @@ class Tree:
 
         tree_copy.snippet = self.snippet
 
-        # TODO is it working?
         if params["ATTRIBUTE_GRAMMAR"]:
             tree_copy.attr_code = self.attr_code
 

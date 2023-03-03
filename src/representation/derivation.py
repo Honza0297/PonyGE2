@@ -46,7 +46,8 @@ def generate_tree(tree, genome, output, method, nodes, depth, max_depth,
     # Randomly pick a production choice and make a codon with it.
     chosen_prod = choice(available)
     codon = generate_codon(chosen_prod, productions)
-    
+    if params["ATTRIBUTE_GRAMMAR"]:
+        tree.attr_code.set_attr_code(chosen_prod["attr_code"])
     # Set the codon for the current node and append codon to the genome.
     tree.codon = codon
     genome.append(codon)
@@ -358,7 +359,7 @@ def pi_grow(tree, max_depth):
 
         # copy attribute code if attribute grammar is used
         if params["ATTRIBUTE_GRAMMAR"]:
-            node.attr_code = chosen_prod["attr_code"]
+            node.attr_code.set_attr_code(chosen_prod["attr_code"])
 
         for i, symbol in enumerate(chosen_prod['choice']):
             # Iterate over all symbols in the chosen production.

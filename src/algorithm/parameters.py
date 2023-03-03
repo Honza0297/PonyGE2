@@ -63,7 +63,7 @@ params = {
     # Set initialisation operator.
     'INITIALISATION': "operators.initialisation.PI_grow",
     # Set the maximum genome length for initialisation.
-    'INIT_GENOME_LENGTH': 200,
+    'INIT_GENOME_LENGTH': 50,
     # Set the maximum tree depth for initialisation.
     'MAX_INIT_TREE_DEPTH': 10,
     # Set the minimum tree depth for initialisation.

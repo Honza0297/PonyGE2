@@ -43,7 +43,7 @@ class Grammar(object):
             # WARNING { cannot be a valid nonterminal in case of attribute grammar
             self.ruleregex = '(?P<rulename><\S+>)\s*::=\s*(?P<production>(?:(?=\#)\#[^\r\n]*|(?!<\S+>\s*::=|\{).+?)+)\s*(?P<attr_code>(?:(?!<\S+>\s*::=)(?:\s*\|?\s*\{.*?\})+))'
             self.productionregex = '(?=\#)(?:\#.*$)|(?!\#)\s*(?P<production>(?:[^\'\"\|\#\{\s]+?[^\'\"\|\#\{]*[^\'\"\|\#\{\s]*|\'.*?\'|".*?")+?)|\s*(?!\#)(?P<attr_code>(?:\{(?:.*?\s*?]*)*\})+)'
-            self.attrcoderegex = '(?P<nontermattr>\<.*?\>\.[^\s\}]+)'
+            self.attrcoderegex = '(?P<nontermattr>\<.*?\>\.[a-zA-Z1-9_]+)' #(?P<nontermattr>\<.*?\>\.[^\s\}]+)'
         else:
             self.ruleregex = '(?P<rulename><\S+>)\s*::=\s*(?P<production>(?:(?=\#)\#[^\r\n]*|(?!<\S+>\s*::=).+?)+)'
             self.productionregex = '(?=\#)(?:\#.*$)|(?!\#)\s*(?P<production>(?:[^\'\"\|\#]+|\'.*?\'|".*?")+)'   
@@ -107,7 +107,7 @@ class Grammar(object):
             # NOTE Tady se parsuji pravidla
             for rule in finditer(self.ruleregex, content, DOTALL):  # v contentu najde vsechny matches daneho regexu (=pravidla) a vrati je jako iterator
                 # Find all rules in the grammar
-                print(rule)
+                #print(rule)
                 # nastavím startovní SYMBOL, i když se to jmenuje start_rule
                 if self.start_rule is None:
                     # Set the first rule found as the start rule.

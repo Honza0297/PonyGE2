@@ -1,13 +1,14 @@
 <S> ::= <S><A><B> | <B><A>
-	{ <S_1>.val = <A>.val + <B>.val + <S_2>.val }
-	| { <S>.val = <A>.val + <B>.val
-	    <S>.val2 = 666 }
-
+	{ <S_1>.val_b = <B>.val + <S_2>.val_b 
+	  error() if len(<S_1>.val_b) < 2 else ok() }
+	| { <S>.val_b = <B>.val
+	    error() if len(<S>.val_b) < 2 else ok() }
+		
 <A> ::= a | a<A><B>
 	{ <A>.val = 1 }
-	| { <A_1>.val = <A_2>.val + <B>.val }
+	| { <A_1>.val = <A_2>.val}
 
 <B> ::= <B>b | b | <A><A>
-	{ <B_1>.val = <B_2>.val }
-	| { <B>.val = 1 }
-	| { <B>.val = <A>.val * <A>.val }
+	{ <B_1>.val = <B_2>.val + [2] }
+	| { <B>.val = [1] }
+	| { <B>.val = [0] }
