@@ -36,7 +36,6 @@ params = {
 
     # Specify whether the grammar is attribute grammar or not
     'ATTRIBUTE_GRAMMAR': False,
-
     # Set the number of depths permutations are calculated for
     # (starting from the minimum path of the grammar).
     # Mainly for use with the grammar analyser script.

@@ -28,8 +28,10 @@ def search_loop():
     if params["ATTRIBUTE_GRAMMAR"]:
         for ind in individuals:
             ind.make_code_tree()
-            ind.tree.attr_code.attrs_init()
-            ind.tree.attr_code.run()
+            ind.code_tree.run()
+            print("dummy")
+            #ind.tree.attr_code.attrs_init()
+            #ind.tree.attr_code.run()
 
     # Evaluate initial population
     individuals = evaluate_fitness(individuals)

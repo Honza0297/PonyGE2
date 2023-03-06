@@ -1,7 +1,7 @@
 <S> ::= <K> 
 	{ <K>.w = 0 
 	  <K>.c = 21
-	  <K>.items = list()
+	  <K>.items = []
 	  <K>.v = 0
 	}
 
@@ -9,14 +9,13 @@
 	{
 	 	<K>.w = <I>.w
 	 	<K>.v = <I>.v
-	 	<K>.items.add(<I>.item)
+	 	<K>.items = <I>.item
 	        error() if <I>.item in <K>.items else ok()
 	        error() if <K>.w > <K>.c else ok()
     }
 	|{
 		<K_1>.w = <K_2>.w + <I>.w
-		<K_1>.items = <K_2>.items
-		<K_1>.items = <K_1>.items + <I>.item
+		<K_1>.items = <K_2>.items + <I>.item 
 		<K_1>.v = <K_2>.v + <I>.v
 		error() if <I>.item in <K_2>.items else ok()
 		error() if <K_1>.w > <K_1>.c else ok()
