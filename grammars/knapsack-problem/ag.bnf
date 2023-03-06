@@ -2,69 +2,70 @@
 	{ <K>.w = 0 
 	  <K>.c = 21
 	  <K>.items = list()
+	  <K>.v = 0
 	}
 
 <K> ::= <I> | <I><K> 
 	{
- 	 	error() if <I>.item in <K>.items else ok()
 	 	<K>.w = <I>.w
-	 	error() if <K>.w > <K>.c else ok()
 	 	<K>.v = <I>.v
 	 	<K>.items.add(<I>.item)
+	        error() if <I>.item in <K>.items else ok()
+	        error() if <K>.w > <K>.c else ok()
     }
 	|{
-		error() if <I>.item in <K_2>.items else ok()
 		<K_1>.w = <K_2>.w + <I>.w
-		error() if <K_1>.w > <K_1>.c else ok()
 		<K_1>.items = <K_2>.items
 		<K_1>.items = <K_1>.items + <I>.item
-		<K_1>.v = <K_2>.v + <I>.v	 
+		<K_1>.v = <K_2>.v + <I>.v
+		error() if <I>.item in <K_2>.items else ok()
+		error() if <K_1>.w > <K_1>.c else ok()
 	}
 <I> ::= i1 | i2 | i3 | i4 | i5 | i6 | i7 | i8 | i9 
 	{
 		<I>.w = 8
 		<I>.v = 7
-		<I>.item = [i1]
+		<I>.item = ["i1"]
 	}
 	|{
 		<I>.w = 9
 		<I>.v = 2
-		<I>.item = [i2]
+		<I>.item = ["i2"]
 	}
 	|{
 		<I>.w = 4
 		<I>.v = 5
-		<I>.item = [i3]
+		<I>.item = ["i3"]
 	}
 	|{
 		<I>.w = 10
 		<I>.v = 8
-		<I>.item = [i4]
+		<I>.item = ["i4"]
 	}
 	|{
 		<I>.w = 4
 		<I>.v = 7
-		<I>.item = [i5]
+		<I>.item = ["i5"]
 	}
 	|{
 		<I>.w = 3
 		<I>.v = 4
-		<I>.item = [i6]
+		<I>.item = ["i6"]
 	}
 	|{
 		<I>.w = 6
 		<I>.v = 4
-		<I>.item = [i7]
+		<I>.item = ["i7"]
 	}
 	|{
 		<I>.w = 2
 		<I>.v = 6
-		<I>.item = [i8]
+		<I>.item = ["i8"]
 	}
 	|{
 		<I>.w = 6
 		<I>.v = 10
-		<I>.item = [i9]
+		<I>.item = ["i9"]
 	}
 
 	

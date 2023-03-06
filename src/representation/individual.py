@@ -2,6 +2,113 @@ import numpy as np
 
 from algorithm.mapper import mapper
 from algorithm.parameters import params
+from re import finditer
+
+
+class CodeTree(object):
+    def __init__(self, tree, parent=None, lhs=None):
+        self.lhs = lhs
+        self.rhs = list()
+        self.children = list()
+        self.raw_code = None
+        self.code = None
+        self.parent = parent
+        self.aliases = {}
+        if not self.parent:
+            self.make_symbol_table(tree)
+        else:
+            self.symbol_table = self.parent.symbol_table
+
+        self.build(tree)
+
+    def build(self, tree):
+        if not self.lhs:
+            self.lhs = NonTerminal(tree.root, self.symbol_table[tree.root])
+        self.rhs = [NonTerminal(node.root, self.symbol_table[tree.root]) for node in tree.children]
+        self.set_aliases(tree)
+        self.parse_code(tree)
+        self.children = [CodeTree(tree.children[i], self, self.rhs[i]) for i in range(len(tree.children))]
+
+    def __str__(self):
+        return str(self.lhs) + " -> " + str(self.rhs)
+
+    def parse_code(self, tree):
+        for line in tree.raw_code.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+
+            # returns string in a form of NT.attr_name (<A>.val, <S_1>.itemcount_3 etc.).
+            # Only alphanumeric characters and underscore (_) are allowed in the attribute name
+            nt_and_attr_regex = '\ *([\r\n]+)\ *|([^\'"<\r\n]+)|\'(.*?)\'|"(.*?)"|(?P<subrule><[^>|\s]+>\.[A-Za-z1-9_]+)|([<]+)'
+
+            first = True
+            for ntas in finditer(nt_and_attr_regex, line):
+                if not ntas.group("subrule"):
+                    continue
+                nt, attr = ntas.group("subrule").split(".")
+                # if the first processed attribute seems to belong to the lhs of current rule, suppose it is synthesized
+                if self.aliases[nt] == self.lhs and first and self.aliases[nt].attributes[attr]["type"] is None:
+                    self.aliases[nt].attributes[attr]["type"] = "S"  # attribute is syntesized
+                # else if it is not current lhs, this attribute is probably inherited
+                elif self.aliases[nt] != self.lhs and first and self.aliases[nt].attributes[attr]["type"] is None:
+                    self.aliases[nt].attributes[attr]["type"] = "I"
+                first = False
+                if not first:
+                    break
+
+    def get_child(self, nonterm, tree):
+        for c in tree.children:
+            if c.root == nonterm:
+                return c
+        return None
+
+    def set_aliases(self, tree):
+        if not tree.raw_code:
+            return
+            # Set proper aliases
+            # for example: in rule <S> ::= <S><A> we need to distinguish between first and second <S>
+            # in attribute code, it is done by giving them and index: <S_1>, <S_2> etc., while <A> wont be changed
+            # aliases thus are:
+            # <S>   <S>   <A>
+            # <S_1> <S_2> <A>
+        nts_in_rule = [tree.root] + [child.root for child in tree.children]
+        counts = list()
+        aliases = list()
+        for nt in nts_in_rule:
+            counts.append(nts_in_rule.count(nt))
+        for i in range(len(nts_in_rule)):
+            if nts_in_rule.count(nts_in_rule[i]) == 1:
+                aliases.append(nts_in_rule[i])
+            else:
+                aliases.append(
+                    "<" + nts_in_rule[i][1:-1] + "_" + str(nts_in_rule.count(nts_in_rule[i]) - counts[i] + 1) + ">")
+                counts[i] -= 1
+
+        nonterminals = [self.lhs] + self.rhs
+        for i in range(len(nonterminals)):
+            self.aliases[aliases[i]] = nonterminals[i]
+
+    def make_symbol_table(self, tree):
+        tmp = params["BNF_GRAMMAR"].non_terminals
+        nts = dict()
+        for nt in tmp.keys():
+            nts[nt] = tmp[nt]["attributes"]
+        # todo zjistit typy atributů
+
+        self.symbol_table = nts
+class NonTerminal(object):
+    def __init__(self, name="", attributes=None):
+        self.name = name
+        self.attributes = {}
+        if attributes is None and name in params["BNF_GRAMMAR"].non_terminals.keys():
+            for attr in params["BNF_GRAMMAR"].non_terminals[name]["attributes"].keys():
+                self.attributes[attr] = {"type": None, "value": None}
+        else:
+            self.attributes = attributes
+
+    def __str__(self):
+        return str(self.name) + ": " + str(self.attributes)
 
 
 class Individual(object):
@@ -25,7 +132,7 @@ class Individual(object):
             # The individual needs to be mapped from the given input
             # parameters.
             self.phenotype, self.genome, self.tree, self.nodes, self.invalid, \
-            self.depth, self.used_codons = mapper(genome, ind_tree)
+                self.depth, self.used_codons = mapper(genome, ind_tree)
 
         else:
             # The individual does not need to be mapped.
@@ -34,6 +141,8 @@ class Individual(object):
         self.fitness = params['FITNESS_FUNCTION'].default_fitness
         self.runtime_error = False
         self.name = None
+        if params["ATTRIBUTE_GRAMMAR"]:
+            self.code_tree = None
 
     def __lt__(self, other):
         """
@@ -88,6 +197,10 @@ class Individual(object):
         """
         return ("Individual: " +
                 str(self.phenotype) + "; " + str(self.fitness))
+
+    def make_code_tree(self):
+        self.code_tree = CodeTree(tree=self.tree, parent=None, lhs={})
+        #self.code_tree.build(self.tree)
 
     def deep_copy(self):
         """

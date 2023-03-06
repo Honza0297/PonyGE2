@@ -22,6 +22,7 @@ class Tree:
         if params["ATTRIBUTE_GRAMMAR"]:
             self.attr_code = AttrCode(None, self)
             self.valid = True
+            self.raw_code = None
 
     def __str__(self):
         """

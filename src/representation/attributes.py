@@ -25,7 +25,7 @@ class AttrCode():
 
         self.set_attr_code(code)
 
-    def attrs_init(self):
+    def attrs_init(self, non_recursive=False):
         """Init attribute tree"""
         # Some nodes have no code - leafs etc.
         if not self.raw_code:
@@ -59,17 +59,34 @@ class AttrCode():
                 if not ntas.group("subrule"):
                     continue
                 nt, attr = ntas.group("subrule").split(".")
-                # if first proccessed attribute seems to belong to the lhs of current rule, suppose it is syntesized
+                # if the first processed attribute seems to belong to the lhs of current rule, suppose it is synthesized
                 if self.aliases[nt] == self.lhs and first and self.aliases[nt].attrs[attr]["type"] is None:
                     self.aliases[nt].attrs[attr]["type"] = "S"  # attribute is syntesized
-                # else if it is not current lhs, this attribute is inherited
+                # else if it is not current lhs, this attribute is probably inherited
                 elif self.aliases[nt] != self.lhs and first and self.aliases[nt].attrs[attr]["type"] is None:
-                    self.aliases[nt].attrs[attr]["type"] = "I"
+                    # check whether it is a constant/literal assignment or not
+                    line_iter = finditer(nt_and_attr_regex, line)
+                    line_iter.__next__()  # throw off the first part
+                    next_part = line_iter.__next__().group(0).strip()
+                    if "=" in next_part and next_part.strip() != "=":
+                        next_node = self.get_child(nt)
+                        if next_node:
+                            next_node.attr_code.attrs_init(non_recursive=True)
+                            self.aliases[nt].attrs[attr]["type"] = next_node.attr_code.lhs.attrs[attr]["type"]
+                            # if there was no mention about the current attribute in next level, it is probably
+                            # some value to compare with (capacity in knapsack problem etc)
+                            if next_node.attr_code.lhs.attrs[attr]["type"] is None:
+                                next_node.attr_code.lhs.attrs[attr]["type"] = "I"
+
+                    else:
+                        self.aliases[nt].attrs[attr]["type"] = "I"
                 first = False
                 if not first:
                     break
 
-        # todo mozna by sly tyto dve smycky sloucit (ta nad a pod timto komentem)
+        if non_recursive:
+            return
+
         template = "self.aliases[\"{}\"].attrs[\"{}\"][\"value\"]"
         for line in self.raw_code.splitlines():
             if not line.strip():
@@ -102,6 +119,8 @@ class AttrCode():
 
     def run(self):
         ntas_regex = "self\.aliases\[\"\<[a-zA-Z1-9_]+\>\"\]\.attrs\[\"[a-z_1-9]+\"\]\[\"value\"\]"
+        run_children = False
+        children_ran = False
         for code_line in self.exec_code:
             #dummy = "".join(code_line)
             nt, var = None, None
@@ -113,33 +132,41 @@ class AttrCode():
                 for item in code_line:
                     if match(ntas_regex, item):
                         nt, var = self._get_nt_and_var_from_code_line_part(item)
-
             attribute_type = self.aliases[nt].attrs[var]["type"]
             if attribute_type == "I":
                 try:
-                    exec("".join(code_line))
+                    exec(" ".join(code_line))
+                    run_children = True
                 except Exception as e:
+                    print(" ".join(code_line))
                     print(e)
             elif attribute_type == "S":
-                #                           <, > are just for nt specification
-                s = code_line[1]
-                a = re.match(r"=[^<]+", code_line[1].strip())
-                if re.match(r"=[^<]+", code_line[1].strip()):
+                # check whether it is a literal assignment - in that case, treat it like "I" type
+                # in case if literal assignment, the = and literal are parsed as one token -> check length should be ok
+                if len(code_line[1].strip()) > 1:
                     try:
-                        exec("".join(code_line))
+                        exec(" ".join(code_line))
+                        run_children = True
                     except Exception as e:
+                        print(" ".join(code_line))
                         print(e)
                 else:
+                    children_ran = True
                     for child in self.tree.children:
                         # Check for leafs and perform recursive code run only if it will
                         # be applied to non-leaf
                         if child.root in params["BNF_GRAMMAR"].non_terminals.keys():
                             child.attr_code.run()
                     try:
-                        exec("".join(code_line))
+                        exec(" ".join(code_line))
                     except Exception as e:
-                        print("".join(code_line))
+                        print(" ".join(code_line))
                         print(e)
+
+        if run_children and not children_ran:
+            for child in self.tree.children:
+                child.attr_code.run()
+
 
 
 
@@ -159,6 +186,11 @@ class AttrCode():
                 var = regex_match.group("var_id")
                 return nt, var
 
+    def get_child(self, nonterm):
+        for c in self.tree.children:
+            if c.root == nonterm:
+                return c
+        return None
 
 
 class NontermAttrs():
