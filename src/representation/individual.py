@@ -3,10 +3,11 @@ import numpy as np
 from algorithm.mapper import mapper
 from algorithm.parameters import params
 from re import finditer, match
-
+import copy
 
 class CodeTree(object):
     def __init__(self, tree, parent=None, lhs=None):
+
         self.valid = True
         self.tree = tree
         self.lhs = lhs
@@ -70,6 +71,7 @@ class CodeTree(object):
 
     def set_aliases(self):
         if not self.tree.raw_code:
+
             return
             # Set proper aliases
             # for example: in rule <S> ::= <S><A> we need to distinguish between first and second <S>
@@ -117,8 +119,15 @@ class CodeTree(object):
                         continue
 
                     name, attribute_type, default_value = line.split(",")
-                    self.symbol_table[block[0]][name] = {"type": attribute_type.strip(), "value": default_value.strip()}
-        print(self.symbol_table)
+                    types = [int, list, float]
+                    for t in types:
+                        try:
+                            default_value = t(default_value)
+                            break
+                        except ValueError:
+                            pass
+                    self.symbol_table[block[0]][name] = {"type": attribute_type.strip(), "value": default_value.strip() if type(default_value) == str else default_value }
+        #print(self.symbol_table)
 
     def run(self):
         ntas_regex = "self\.aliases\[\"\<[a-zA-Z1-9_]+\>\"\]\.attributes\[\"[a-z_1-9]+\"\]\[\"value\"\]"
@@ -177,12 +186,12 @@ class CodeTree(object):
             self.check_validity()
 
     def check_validity(self):
-        if not self.parent: # root
-            if not self.children: # trunk
+        if not self.parent:  # root
+            if not self.children:  # trunk
                 return
-            else: # standard root
+            else:  # standard root
                 self.valid = min([self.valid] + [child.check_validity() for child in self.children])
-        else: # node/leaf
+        else:  # node/leaf
             if not self.children: # leaf
                 return self.valid
             else:
@@ -190,10 +199,11 @@ class CodeTree(object):
 
     def error(self):
         self.valid = False
-        print("EEEERRRROOOORRRR")
+        #print("EEEERRRROOOORRRR")
 
     def ok(self):
-        print("OOOKKK")
+        pass
+        #print("OOOKKK")
 
     def _get_nt_and_var_from_code_line_part(self, text):
         nt = "<" + text.split("<")[1].split(">")[0] + ">"
@@ -218,9 +228,9 @@ class NonTerminal(object):
             for attr in params["BNF_GRAMMAR"].non_terminals[name]["attributes"].keys():
                 self.attributes[attr] = {"type": None, "value": None}
         else:
-            for attribute in attributes: # need to make a copy
-                self.attributes[attribute] = {"type": None, "value": None}
-            self.attributes = attributes
+            for attribute in attributes:  # need to make a deep copy
+                self.attributes = copy.deepcopy(attributes)
+            #self.attributes = attributes
 
     def __str__(self):
         return str(self.name) + ": " + str(self.attributes)
@@ -257,7 +267,13 @@ class Individual(object):
         self.runtime_error = False
         self.name = None
         if params["ATTRIBUTE_GRAMMAR"]:
-            self.code_tree = None
+            self.make_code_tree()
+            self.code_tree.run()
+            self.check_attribute_validity()
+
+        if genome:
+            #print("genome stop here")
+            pass
 
     def __lt__(self, other):
         """
@@ -317,6 +333,14 @@ class Individual(object):
         self.code_tree = CodeTree(tree=self.tree, parent=None, lhs={})
         self.code_tree.build()
 
+    def check_attribute_validity(self):
+        try:
+            self.invalid = (not self.code_tree.valid) or self.invalid
+        except AttributeError:
+            self.invalid = not self.code_tree.valid
+
+
+
     def deep_copy(self):
         """
         Copy an individual and return a unique version of that individual.
@@ -340,6 +364,9 @@ class Individual(object):
         new_ind.depth, new_ind.nodes = self.depth, self.nodes
         new_ind.used_codons = self.used_codons
         new_ind.runtime_error = self.runtime_error
+
+        if params["ATTRIBUTE_GRAMMAR"]:
+            new_ind.code_tree = copy.deepcopy(self.code_tree)
 
         return new_ind
 

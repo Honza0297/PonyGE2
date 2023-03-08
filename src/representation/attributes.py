@@ -140,6 +140,7 @@ class AttrCode():
                 except Exception as e:
                     print(" ".join(code_line))
                     print(e)
+                    exit(-1)
             elif attribute_type == "S":
                 # check whether it is a literal assignment - in that case, treat it like "I" type
                 # in case if literal assignment, the = and literal are parsed as one token -> check length should be ok
@@ -150,6 +151,7 @@ class AttrCode():
                     except Exception as e:
                         print(" ".join(code_line))
                         print(e)
+                        exit(-1)
                 else:
                     children_ran = True
                     for child in self.tree.children:
@@ -162,6 +164,7 @@ class AttrCode():
                     except Exception as e:
                         print(" ".join(code_line))
                         print(e)
+                        exit(-1)
 
         if run_children and not children_ran:
             for child in self.tree.children:
@@ -172,10 +175,11 @@ class AttrCode():
 
     def error(self):
         self.valid = False
-        print("EEEERRRROOOORRRR")
+        #print("EEEERRRROOOORRRR")
 
     def ok(self):
-        print("OOOKKK")
+        pass
+        #print("OOOKKK")
 
     def _get_nt_and_var_from_code_line_part(self, text):
         nt = "<" + text.split("<")[1].split(">")[0] + ">"

@@ -24,9 +24,10 @@ def step(individuals):
 
     # Crossover parents and add to the new population.
     cross_pop = crossover(parents)
-
+    # NOTE: brutálně neefektivní, tady dělám stromy, které ale vzápětí zahodím.
     # Mutate the new population.
     new_pop = mutation(cross_pop)
+    # todo for every ind generate tree
 
     # Evaluate the fitness of the new population.
     new_pop = evaluate_fitness(new_pop)

@@ -338,7 +338,10 @@ def generate_ind_tree(max_depth, method):
 
     # Set individual parameters
     ind.phenotype, ind.nodes = phenotype, nodes
-    ind.depth, ind.used_codons, ind.invalid = depth, used_cod, invalid
+    if not params["ATTRIBUTE_GRAMMAR"]:
+        ind.depth, ind.used_codons, ind.invalid = depth, used_cod, invalid
+    else:  # validity is set by checking attributes
+        ind.depth, ind.used_codons = depth, used_cod
 
     # Generate random tail for genome.
     ind.genome = genome + [randint(0, params['CODON_SIZE']) for

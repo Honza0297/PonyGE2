@@ -9,15 +9,15 @@
 	{
 	 	<K>.w = <I>.w
 	 	<K>.v = <I>.v
+                error() if <I>.item[0] in <K>.items else ok()
 	 	<K>.items = <I>.item
-	        error() if <I>.item in <K>.items else ok()
 	        error() if <K>.w > <K>.c else ok()
     }
 	|{
 		<K_1>.w = <K_2>.w + <I>.w
 		<K_1>.items = <K_2>.items + <I>.item 
 		<K_1>.v = <K_2>.v + <I>.v
-		error() if <I>.item in <K_2>.items else ok()
+		error() if <I>.item[0] in <K_2>.items else ok()
 		error() if <K_1>.w > <K_1>.c else ok()
 	}
 <I> ::= i1 | i2 | i3 | i4 | i5 | i6 | i7 | i8 | i9 

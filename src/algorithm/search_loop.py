@@ -25,14 +25,6 @@ def search_loop():
     # Initialise population
     individuals = initialisation(params['POPULATION_SIZE'])
 
-    if params["ATTRIBUTE_GRAMMAR"]:
-        for ind in individuals:
-            ind.make_code_tree()
-            ind.code_tree.run()
-            print("dummy")
-            #ind.tree.attr_code.attrs_init()
-            #ind.tree.attr_code.run()
-
     # Evaluate initial population
     individuals = evaluate_fitness(individuals)
 

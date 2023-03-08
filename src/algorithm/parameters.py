@@ -323,7 +323,7 @@ def set_params(command_line_args, create_files=True):
 
         # Set GENOME_OPERATIONS automatically for faster linear operations.
         if (params['CROSSOVER'].representation == "subtree" or
-                params['MUTATION'].representation == "subtree"):
+                params['MUTATION'].representation == "subtree" or params["ATTRIBUTE_GRAMMAR"]):
             params['GENOME_OPERATIONS'] = False
         else:
             params['GENOME_OPERATIONS'] = True
