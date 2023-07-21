@@ -45,7 +45,7 @@ class DataLogger:
 
 class Runtime:
     """
-    Environment model - primarily provides common logic for agents: sensing, moving...
+    environment model - primarily provides common logic for agents: sensing, moving...
     """
     def __init__(self, board: QBoard, app, holes=[], hole_chance=1/100.):
         self.agents = []

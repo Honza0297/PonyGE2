@@ -1,69 +1,81 @@
-# -*- coding: utf-8 -*-
-"""
-The agent class for swarm framework.
+import queue
+import random
+import sys
+import threading
+import time
 
-Core Objects: Agent
-Authors: Aadesh Neupane, Jan Beran
-"""
+from src.swarm.packets import *
 
-
-class Agent:
-    """Base class for a agent."""
-
-    def __init__(self, name, runtime):
-        """Create a new agent.
-
-        Overload this method to define diverse agents.
-        Args:
-            name: a unique name for the agent. It helps to
-                  distingush between different agents in the environment.
-
-            runtime: model class which gives the agent access to environmental
-                    variables like sites, hub, food and others
-
-        Attributes:
-            capacity: agent's capacity to do some work in the environment
-
-            attached_objects: a list which stores the objects attached
-                               to the agent. Useful for carrying and droping
-                               objects
-        """
+class BasicAgent(threading.Thread):
+    def __init__(self, name, sense_radius=1):
+        super().__init__()
         self.name = name
-        self.runtime = runtime
-        self.capacity = 10
-        self.attached_objects = []
-        self.position = [0,0]
-        self.signals = []
+        self.request_queue = None
+        self.position = None
+        self.bt = None
+        self.response_queue = queue.Queue()
+        self.sense_radius = sense_radius
 
-        self.dead = False
-        self.moveable = True
 
-    def step(self):
-        """Represent a single step of the agent."""
-        pass
 
-    def advance(self):
-        """Actions to do after a step of the agent."""
-        pass
+    def set_queue(self, q):
+        self.queue = q
 
-    def get_capacity(self):
-        """Compute the remaining capacity of the agent.
 
-        The capacity of the agent is fixed. Based on the objects it is
-        carrying we need to adjust/reflect on the capacity of the agent.
-        """
-        relative_capacity = self.capacity
-        for item in self.attached_objects:
-            try:
-                relative_capacity -= item.capacity
-            except KeyError:
-                self.attached_objects.remove(item)
+class DummyAgent(threading.Thread):
+    def __init__(self, name, sense_radius=1):
+        super(DummyAgent, self).__init__()
+        self.name = name
+        self.request_queue = None
+        self.position = None
+        self.bt = None
+        self.response_queue = queue.Queue()
+        self.sense_radius = sense_radius
 
-        if relative_capacity < 0:
-            return 0
-        else:
-            return relative_capacity
+    def set_queue(self, q):
+        self.request_queue = q
 
-class TestAgent(Agent):
-    def __init__(self, name, runtime):
-        super().__init__(name, runtime)
+    def sense(self):
+        self.request_queue.put(Sense(self.name))
+
+    def run(self):
+        #Init its position
+        init_msg = self.response_queue.get()
+        self.position = list(init_msg.position)
+        print("Init position is  {}".format(self.position))
+        while True:
+            print("Agent {} starts its iteration".format(self.name))
+            self.sense()
+            resp = self.response_queue.get()
+            print("Agent {} got sense response".format(self.name))
+            #print("{}, {}, ".format(self.name, resp.agent_name))
+            if resp.agent_name != self.name:
+                raise Exception("Bad message")
+            succ = self.random_move(resp.neighbourhood)
+            print("Agent {} finished random move fction with succ = {}".format(self.name, succ))
+
+            time.sleep(1)
+
+
+    def random_move(self, neighbourhood):
+        axis = random.randint(0, 1)
+        offset = random.randint(0,1)*2-1  # 0/1 -> 0/2 -> -1/1
+        new_pos = list(self.position)  # We need to deep copy
+        new_pos[axis] += offset
+
+        new_pos_in_neighbourhood = [self.sense_radius, self.sense_radius]
+        new_pos_in_neighbourhood[axis] += offset
+        print("Agent {} wants to move from {} to {}".format(self.name, self.position, new_pos))
+        if neighbourhood[new_pos_in_neighbourhood[0]][new_pos_in_neighbourhood[1]] \
+                and not neighbourhood[new_pos_in_neighbourhood[0]][new_pos_in_neighbourhood[1]].occupied:
+            print("Agent {} putting move request".format(self.name))
+            self.request_queue.put(Move(self.name, new_pos))
+            resp = self.response_queue.get()
+            if self.position == resp.position:
+                print("Agent {} got wrong move response".format(self.name))
+            self.position = list(resp.position)
+            return True
+        else: return False
+
+    def __repr__(self):
+        return "Agent {} at {}".format(self.name, self.position)
