@@ -14,10 +14,13 @@ check_python_version()
 from stats.stats import get_stats
 from algorithm.parameters import params, set_params
 import sys
+from swarm.agent import Agent
 
+AGENTS_NUM = 1
 def mane():
     """ Run program """
     set_params(sys.argv[1:])  # exclude the ponyge.py arg itself
+    agents = [Agent() for i in range(AGENTS_NUM)]
     # Run evolution
     individuals = params['SEARCH_LOOP']()
 
