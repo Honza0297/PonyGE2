@@ -2,9 +2,13 @@ import queue
 import random
 import threading
 import time
+import logging
 
-from src.swarm.models import BoardModel
+from src.swarm.math import compute_distance
+from src.swarm.models import BoardModel, TileModel
 from src.swarm.packets import *
+from src.swarm.objects import *
+from src.swarm.types import ObjectType
 
 class Backend(threading.Thread):
     def __init__(self, gui):
@@ -30,6 +34,14 @@ class Backend(threading.Thread):
     def run(self):
         pass
 
+    def place_object(self, obj: EnvironmentObject, position):
+        for r in range(position[0]-obj.radius, position[0]+obj.radius+1):
+            for c in range(position[1] - obj.radius, position[1] + obj.radius + 1):
+                tile = self.board_model.tiles[r][c]
+                if compute_distance(tile.position, position) <= obj.radius:
+                    tile.place_object(obj)
+        obj.set_place(position, self.board_model)
+
 
 class TestBackend(Backend):
     def __init__(self, gui):
@@ -42,26 +54,45 @@ class TestBackend(Backend):
         for agent_name in self.agents.keys():
             self.agents[agent_name].start()
         while True:
-            print("Backend does its job: {}".format(cnt))
+            logging.debug("###########\nIteration number {}".format(cnt))
             cnt += 1
             self.update_gui()
             item = None
             try:
                 item = self.requestQueue.get_nowait()
-                print("Got item of type {}".format(type(item)))
+                logging.debug("BKN: Got item of type {}".format(type(item)))
             except queue.Empty:
-                print("ReqQ empty")
+                logging.debug("BKN: ReqQ empty")
                 time.sleep(0.1)
                 continue
             if type(item) == Sense:
-                neighbourhood = self.get_object_neighbourhood(self.agents[item.agent_name])
-                self.agents[item.agent_name].response_queue.put(Neighbourhood(item.agent_name, neighbourhood))
+                neighbourhood = self.sense_object_neighbourhood(self.agents[item.agent_name])
+                self.agents[item.agent_name].response_queue.put(NeighbourhoodResp(item.agent_name, neighbourhood))
             elif type(item) == Move:
-                print("##################got move from {}".format(item.agent_name))
+                logging.debug("BKN: Got request to move move from agent {}".format(item.agent_name))
                 pos = self.move_agent(self.agents[item.agent_name], item.position)
-                print("dddd")
                 self.agents[item.agent_name].response_queue.put(Position(item.agent_name, pos))
-                print("Ddd")
+                # TODO this is a bad practice! but we need the agent to be moved BEFORE its turn
+                self.agents[item.agent_name].set_position(pos)
+            elif type(item) == PickUpReq:
+                pos = item.position
+                tile = self.board_model.tiles[pos[0]][pos[1]]
+                if tile.object:
+                    resp = PickUpResp(item.agent_name, tile.object)
+                    tile.remove_object(tile.object)
+                    self.agents[item.agent_name].response_queue.put(resp)
+            elif type(item) == DropReq:
+                pos = item.position
+                dropped = False
+                if not self.board_model.tiles[pos[0]][pos[1]].occupied:
+                    if item.item_type == ObjectType.FOOD:
+                        new_object = FoodSource(name="food_dropped_by_{}".format(item.agent_name), radius=0)
+                        new_object.set_place(pos, self.board_model)
+                        dropped = True
+                    else:
+                        raise TypeError("This object cannot be dropped :)")
+                resp = DropResp(item.agent_name, dropped)
+                self.agents[item.agent_name].response_queue.put(resp)
             else:
                 pass
 
@@ -71,6 +102,8 @@ class TestBackend(Backend):
             while True:
                 pos = (
                 random.randint(0, self.board_model.dimension - 1), random.randint(0, self.board_model.dimension - 1))
+                # TODO workaround
+                pos = (2, 6)
                 tile = self.board_model.tiles[pos[0]][pos[1]]
                 if not tile.occupied:
                     if tile.place_object(self.agents[agent_name]):
@@ -80,7 +113,7 @@ class TestBackend(Backend):
                 else: continue
             self.agents[agent_name].response_queue.put(Position(agent_name, pos))
 
-    def get_object_neighbourhood(self, obj):
+    def sense_object_neighbourhood(self, obj):
         pos = obj.position
         radius = obj.sense_radius
         neighbourhood = list()
@@ -108,9 +141,14 @@ class TestBackend(Backend):
         return neighbourhood
 
     def move_agent(self, agent, position):
-        print("#########backend tries to move agent from {} to {}".format(agent.position, position))
+        retval = agent.position
+        logging.debug("BKN: tries to move agent from {} to {}".format(agent.position, position))
         if not self.board_model.tiles[position[0]][position[1]].occupied:
             self.board_model.tiles[agent.position[0]][agent.position[1]].remove_object(agent)
             self.board_model.tiles[position[0]][position[1]].place_object(agent)
-        else: return agent.position
-        return position
+            retval = position
+            logging.debug("BKN: Agent {} moved to {}".format(agent.name, agent.position))
+        else:
+            retval = agent.position
+
+        return retval

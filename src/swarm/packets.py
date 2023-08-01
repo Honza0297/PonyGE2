@@ -20,7 +20,33 @@ class Position(Packet):
         super(Position, self).__init__(agent_name)
         self.position = position
 
-class Neighbourhood(Packet):
+
+class NeighbourhoodResp(Packet):
     def __init__(self, agent_name, nh):
-        super(Neighbourhood, self).__init__(agent_name)
+        super(NeighbourhoodResp, self).__init__(agent_name)
         self.neighbourhood = nh
+
+
+class PickUpReq(Packet):
+    def __init__(self, agent_name, position):
+        super(PickUpReq, self).__init__(agent_name)
+        self.position = position
+
+
+class DropReq(Packet):
+    def __init__(self, agent_name, item_type, position):
+        super(DropReq, self).__init__(agent_name)
+        self.item_type = item_type
+        self.position = position
+
+
+class PickUpResp(Packet):
+    def __init__(self, agent_name, obj):
+        super(PickUpResp, self).__init__(agent_name)
+        self.pickedObj = obj
+
+
+class DropResp(Packet):
+    def __init__(self, agent_name, dropped):
+        super(DropResp, self).__init__(agent_name)
+        self.dropped = dropped

@@ -2,8 +2,9 @@
 Generic BoardModel.
 """
 from PyQt5 import QtCore
-from src.swarm.agent import DummyAgent
-
+from src.swarm.types import ObjectType
+from src.swarm.agent import Agent
+from src.swarm.objects import EnvironmentObject
 
 class BoardModel:
     def __init__(self, dimension):
@@ -35,28 +36,33 @@ class TileModel:
         self.object = None
         self.image = ""
         self.background = None
-        self.type = "generic"
+        self.type = ObjectType.GENERIC
         self.props = {}
 
     def place_object(self, obj):
+        succ = False
         if self.occupied:
-            return False
-        if type(obj) == DummyAgent:
-            self.occupied = True
-            self.object = obj
-            self.background = QtCore.Qt.black
-            return True
-        else:
-             raise TypeError("Attempted to place unsupported object: {}", obj)
+            succ = False
+        self.occupied = True
+        self.object = obj # whole object, not a type!
+        self.type = obj.type
+        self.background = obj.color  # TODO rozlisit mezi tim, kdyzz ma objekt jen color, jen image nebo oboji
+        succ = True
+        return succ
 
     def remove_object(self, obj):
+        if not self.object:
+            return False
         if self.object != obj:
             raise TypeError("Object to remove is not the object placed here!")
-        self.occupied = False
+        obj = self.object  # backup to be able to call remove_part
         self.object = None
+        if not obj.type == ObjectType.AGENT:
+            obj.remove_part(self.position)
+        self.occupied = False
+        self.type = ObjectType.GENERIC
         self.background = QtCore.Qt.white
         return True
-
 
     def __repr__(self):
         return "Tile at {}, occupied: {}, object: {}".format(self.position, self.occupied, self.object)
