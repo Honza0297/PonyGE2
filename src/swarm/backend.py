@@ -1,14 +1,14 @@
 import queue
 import random
-import threading
 import time
 import logging
-
+import threading
 from src.swarm.math import compute_distance
 from src.swarm.models import BoardModel, TileModel
 from src.swarm.packets import *
 from src.swarm.objects import *
 from src.swarm.types import ObjectType
+
 
 class Backend(threading.Thread):
     def __init__(self, gui):
@@ -16,18 +16,17 @@ class Backend(threading.Thread):
         self.gui = gui
 
         self.board_model = BoardModel(gui.dimension)
-        self.agents = dict()
-        self.requestQueue = queue.Queue()
+        self.agents = list()
 
     def register_agent(self, agent):
-        if agent.name not in self.agents.keys():
-            self.agents[agent.name] = agent
-            agent.set_queue(self.requestQueue)
+        if agent not in self.agents:
+            self.agents.append(agent)
+            agent.backend = self
         else:
             raise KeyError("Agent name already registered: {}", agent.name)
 
     def update_gui(self):
-        timer = threading.Timer(1, self.update_gui)
+        timer = threading.Timer(0.1, self.update_gui)
         timer.start()
         self.gui.update(self.board_model)
 
@@ -46,72 +45,62 @@ class Backend(threading.Thread):
 class TestBackend(Backend):
     def __init__(self, gui):
         super(TestBackend, self).__init__(gui)
+    def setup(self):
+        self.place_agents()
+        self.update_gui()
 
     def run(self):
         cnt = 0
-        self.place_agents()
-        self.update_gui()
-        for agent_name in self.agents.keys():
-            self.agents[agent_name].start()
+        self.setup()
         while True:
             logging.debug("###########\nIteration number {}".format(cnt))
             cnt += 1
-            self.update_gui()
-            item = None
-            try:
-                item = self.requestQueue.get_nowait()
-                logging.debug("BKN: Got item of type {}".format(type(item)))
-            except queue.Empty:
-                logging.debug("BKN: ReqQ empty")
-                time.sleep(0.1)
-                continue
-            if type(item) == Sense:
-                neighbourhood = self.sense_object_neighbourhood(self.agents[item.agent_name])
-                self.agents[item.agent_name].response_queue.put(NeighbourhoodResp(item.agent_name, neighbourhood))
-            elif type(item) == Move:
-                logging.debug("BKN: Got request to move move from agent {}".format(item.agent_name))
-                pos = self.move_agent(self.agents[item.agent_name], item.position)
-                self.agents[item.agent_name].response_queue.put(Position(item.agent_name, pos))
-                # TODO this is a bad practice! but we need the agent to be moved BEFORE its turn
-                self.agents[item.agent_name].set_position(pos)
-            elif type(item) == PickUpReq:
-                pos = item.position
-                tile = self.board_model.tiles[pos[0]][pos[1]]
-                if tile.object:
-                    resp = PickUpResp(item.agent_name, tile.object)
-                    tile.remove_object(tile.object)
-                    self.agents[item.agent_name].response_queue.put(resp)
-            elif type(item) == DropReq:
-                pos = item.position
-                dropped = False
-                if not self.board_model.tiles[pos[0]][pos[1]].occupied:
-                    if item.item_type == ObjectType.FOOD:
-                        new_object = FoodSource(name="food_dropped_by_{}".format(item.agent_name), radius=0)
-                        new_object.set_place(pos, self.board_model)
-                        dropped = True
-                    else:
-                        raise TypeError("This object cannot be dropped :)")
-                resp = DropResp(item.agent_name, dropped)
-                self.agents[item.agent_name].response_queue.put(resp)
+            random.shuffle(self.agents)  # change order every round to simulate non deterministic order of action for every agent
+            #self.gui.update(self.board_model)
+            for agent in self.agents:
+                agent.step()
+            time.sleep(0.2)
+
+    def pick_up_req(self, agent, pos):
+        tile = self.board_model.tiles[pos[0]][pos[1]]
+        resp = PickUpResp(agent.name, None)
+
+        if tile and tile.object:
+            resp = PickUpResp(agent.name, tile.object)
+            tile.remove_object(tile.object)
+        return resp
+
+    def drop_out_resp(self, agent, req):
+        resp = DropResp(agent.name, dropped=False)
+        item_type = req.item_type
+        pos = req.position
+        if not self.board_model.tiles[pos[0]][pos[1]].occupied:
+            if item_type == ObjectType.FOOD:
+                new_object = FoodSource(name="food_dropped_by_{}".format(agent.name), radius=0)
+                new_object.set_place(pos, self.board_model)
+                resp.dropped = True
             else:
-                pass
+                raise TypeError("This object cannot be dropped :)")
+        elif self.board_model.tiles[pos[0]][pos[1]].occupied and self.board_model.tiles[pos[0]][pos[1]].type == ObjectType.HUB: # item dropped to the base
+            resp.dropped = True
+            logging.debug("BKN: Food was dropped to the base")
+            # TODO maybe notify base that food arrived?
+        return resp
 
     def place_agents(self):
-        for agent_name in self.agents.keys():
+        for agent in self.agents:
             pos = None
             while True:
                 pos = (
                 random.randint(0, self.board_model.dimension - 1), random.randint(0, self.board_model.dimension - 1))
-                # TODO workaround
-                pos = (2, 6)
                 tile = self.board_model.tiles[pos[0]][pos[1]]
                 if not tile.occupied:
-                    if tile.place_object(self.agents[agent_name]):
+                    if tile.place_object(agent):
                         #self.agents[agent_name].position = list(tile.position)
                         break
                     else: continue
                 else: continue
-            self.agents[agent_name].response_queue.put(Position(agent_name, pos))
+            agent.set_position(pos)
 
     def sense_object_neighbourhood(self, obj):
         pos = obj.position
@@ -138,17 +127,27 @@ class TestBackend(Backend):
                     row.append(tile)
                 else: row.append(None)
             neighbourhood.append(row)
-        return neighbourhood
+        msg = NeighbourhoodResp(obj.name, neighbourhood)
+        return msg
 
-    def move_agent(self, agent, position):
-        retval = agent.position
-        logging.debug("BKN: tries to move agent from {} to {}".format(agent.position, position))
-        if not self.board_model.tiles[position[0]][position[1]].occupied:
+    def move_agent(self, agent, old_position, new_position):
+        resp = Position(agent.name, agent.position)
+        if compute_distance(old_position, new_position) > agent.max_speed:
+            raise ValueError("Desired distance greater than max speed")
+        if list(old_position) != list(agent.position):
+            raise RuntimeError("Agent does not know where it is.")
+
+        logging.debug("BKN: tries to move agent from {} to {}".format(agent.position, new_position))
+        if not self.board_model.tiles[new_position[0]][new_position[1]].occupied:
             self.board_model.tiles[agent.position[0]][agent.position[1]].remove_object(agent)
-            self.board_model.tiles[position[0]][position[1]].place_object(agent)
-            retval = position
-            logging.debug("BKN: Agent {} moved to {}".format(agent.name, agent.position))
+            agent_placed = self.board_model.tiles[new_position[0]][new_position[1]].place_object(agent)
+            if agent_placed:
+                resp.position = new_position
+                logging.debug("BKN: Agent {} moved to {}".format(agent.name, new_position))
+            else:
+                raise RuntimeError("Agent {} not placed in desired location".format(agent.name))
         else:
-            retval = agent.position
+            resp.position = agent.position
 
-        return retval
+        return resp
+

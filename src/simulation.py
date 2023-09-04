@@ -12,6 +12,8 @@ from src.swarm.agent import Agent, Neighbourhood
 from src.swarm.objects import FoodSource, Hub
 from src.swarm.types import ObjectType
 
+NUM_OF_AGENS = 10
+BOARD_SIZE = 17
 if __name__ == '__main__':
 
     logging.basicConfig(level=logging.DEBUG)
@@ -19,10 +21,10 @@ if __name__ == '__main__':
 
     app = QApplication(sys.argv)
 
-    gui = SimulationWindow(17)
-    backend_thread = TestBackend(gui)
+    gui = SimulationWindow(BOARD_SIZE)
+    backend = TestBackend(gui)
     agents = list()
-    for i in range(1):
+    for i in range(NUM_OF_AGENS):
         agent = Agent("agent" + str(i), sense_radius=6)
 
         selector = Selector(name="root_selector", memory=True)
@@ -57,16 +59,18 @@ if __name__ == '__main__':
         agent.bt = tree
         agents.append(agent)
 
-        backend_thread.register_agent(agents[-1])
+        backend.register_agent(agents[-1])
     print(type(agents[0]))
 
     food = FoodSource("jidlo", ObjectType.FOOD, 2)
     hub = Hub("hub", ObjectType.HUB, 2)
 
-    backend_thread.place_object(food, [2, 2])
-    backend_thread.place_object(hub, [2,11])
+    backend.place_object(food, [2, 2])
+    backend.place_object(hub, [2, 12])
     print("dummy")
-    backend_thread.start()
+
+    backend.start()
+
     #for agent in agents:
     #    agent.start()
 
