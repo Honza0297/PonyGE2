@@ -6,14 +6,24 @@ import time
 import py_trees.trees
 from PyQt5 import QtCore
 
+from src.swarm import types
 from src.swarm.types import ObjectType
 from src.swarm.packets import *
+import src.algorithm.parameters
+from src.operators.initialisation import initialisation
+from src.fitness.evaluation import evaluate_fitness
 
+from src.operators.selection import selection
+from src.operators.crossover import crossover
+from src.operators.mutation import mutation
+from src.operators.replacement import replacement
+from src.swarm.bt import BTConstruct
 
+from py_trees.trees import BehaviourTree
 class Neighbourhood:
     def __init__(self, neighbourhood=None):
         if neighbourhood is None:
-            self.neighbourhood = list()
+            self.neighbourhood = list() # matrix
             self.valid = False
             self.radius = 0
             self.center = None
@@ -45,14 +55,25 @@ class Neighbourhood:
         self.center = (self.radius, self.radius)
         self.size = len(self.neighbourhood)
 
+    def get(self, obj_type: types.ObjectType):
+        cells_with_object = list()
+        for row in self.neighbourhood:
+            for cell in row:
+                if cell:
+                    if cell.type == obj_type:
+                        cells_with_object.append(cell)
 
-class Agent():
+        return len(cells_with_object) > 0, cells_with_object
+
+
+
+class Agent:
     def __init__(self, name, sense_radius=1, max_speed=1, color=QtCore.Qt.black):
         super(Agent, self).__init__()
         self.name = name
         self.type = ObjectType.AGENT
         self.position = None
-        self.bt = None
+        self.bt_wrapper = BTConstruct(None, self)
         self.sense_radius = sense_radius
         self.color = color
         self.neighbourhood = Neighbourhood()
@@ -70,7 +91,7 @@ class Agent():
             self.neighbourhood.set_neighbourhood(resp.neighbourhood)
 
             # act
-            self.bt.tick()
+            self.bt_wrapper.behaviour_tree.tick()
 
     def set_position(self, pos):
         self.position = list(pos)
@@ -127,7 +148,84 @@ class Agent():
         else:
             return False
 
-
-
     def __repr__(self):
         return "Agent {} at {}".format(self.name, self.position)
+
+
+class EvoAgent(Agent):
+    """"
+    Agent performing GE locally.
+    """
+    def __init__(self, name, sense_radius=1, max_speed=1, color=QtCore.Qt.black, exchange_prob=1, genome_storage_threshold=3):
+        super(Agent, self).__init__()
+        self.genotype_storage_threshold = genome_storage_threshold
+        self.individual = None # type Individual
+        self.individuals = list()
+        self.exchanged_individuals = dict()
+
+        self.exchange_prob = exchange_prob
+        self.init_GE()
+
+    def init_GE(self):
+        src.algorithm.parameters.load_params("parameters.txt")
+
+        individuals = initialisation(size=1) # size of the population = 1
+        individuals = evaluate_fitness(individuals)
+        # Assign the genome to the agent
+        self.individuals = individuals
+        self.individual = self.individuals[0] # first of the randomly generated solutions
+        self.exchanged_individuals[self.name] = self.individual
+        self.bt_wrapper.bt_from_xml()
+        print("mwo")
+
+    def step(self):
+        # todo exploration fitness and overall fitness - from junkOrExamples/agent.py.overall_fitness()
+        # sense
+        resp = self.backend.sense_object_neighbourhood(self)
+        self.neighbourhood.set_neighbourhood(resp.neighbourhood)
+        agents_present, neighbouring_agent_cells = self.neighbourhood.get(types.ObjectType.AGENT)
+        if agents_present:
+            for cell in neighbouring_agent_cells:
+                if not cell.object.name in self.exchanged_individuals.keys():
+                    neighbour_genome = cell.object.ask_for_genome()
+                    # add the genome no matter if the neighbour was willing to share - it serves as an info about asking
+                    self.exchanged_individuals[cell.object.name] = neighbour_genome
+
+        # act
+        self.bt.tick()
+
+
+        #update
+        if len(self.exchanged_individuals) >= self.genotype_storage_threshold:
+            self.individuals = [self.exchanged_individuals[k] for k in self.exchanged_individuals.keys() if self.exchanged_individuals[k] is not None]
+            # todo make genetic step over self.genotype
+            # NOTE: copied and slightly changed code from ponyge/step.py/step()
+            parents = selection(self.individuals)
+
+            # Crossover parents and add to the new population.
+            cross_pop = crossover(parents)
+            # NOTE: brutálně neefektivní, tady dělám stromy, které ale vzápětí zahodím.
+            # Mutate the new population.
+            new_pop = mutation(cross_pop)
+            # todo for every ind generate tree
+
+            # Evaluate  the fitness of the new population.
+            new_pop = evaluate_fitness(new_pop)
+
+            # Replace the old population with the new population.
+            self.individuals = replacement(new_pop, self.individuals)
+
+            # Generate statistics for run so far
+            self.individuals.sort(reverse=True)
+            self.individual = self.individuals[0]
+            self.individual[0].fitness = 0
+            self.exchanged_individuals = dict()
+            self.exchanged_individuals[self.name] = self.individual
+
+
+def ask_for_genome(self):
+        if random.random() < self.exchange_prob:
+            return self.individual
+        else:
+            return None
+

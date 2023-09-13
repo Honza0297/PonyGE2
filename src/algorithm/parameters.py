@@ -5,6 +5,7 @@ from socket import gethostname
 hostname = gethostname().split('.')
 machine_name = hostname[0]
 
+# NOTE: these params are NOT used in the swarm simulation. Default params are in swarm/default_params.py
 """Algorithm parameters"""
 params = {
     # Set default step and search loop functions

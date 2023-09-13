@@ -38,8 +38,10 @@ def tournament(population):
     while len(winners) < params['GENERATION_SIZE']:
         # Randomly choose TOURNAMENT_SIZE competitors from the given
         # population. Allows for re-sampling of individuals.
+        print("###{} {}".format(len(available), params['TOURNAMENT_SIZE']))
+        if len(available) < params['TOURNAMENT_SIZE']:
+            print("Ahme")
         competitors = sample(available, params['TOURNAMENT_SIZE'])
-
         # Return the single best competitor.
         winners.append(max(competitors))
 

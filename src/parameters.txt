@@ -1,0 +1,6 @@
+GRAMMAR_FILE: xberan/Simplified-PPA-grammar.bnf
+INITIALISATION: uniform_tree
+POPULATION: 10
+GENERATIONS: 10
+FITNESS_FUNCTION: swarm_fitness_diversity
+MAX_TREE_DEPTH: 10

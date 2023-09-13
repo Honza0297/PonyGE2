@@ -1,0 +1,39 @@
+original PPA Grammar
+
+⟨root⟩ ::= ⟨sequence⟩ | ⟨selector⟩
+
+⟨sequence⟩ ::= [Sequence]⟨ppa⟩[/Sequence] | [Sequence]⟨root⟩⟨root⟩[/Sequence] | [Sequence]⟨sequence⟩⟨root⟩[/Sequence]
+
+⟨selector⟩ ::= [Selector]⟨ppa⟩[/Selector] | [Selector]⟨root⟩⟨root⟩[/Selector] | [Selector]⟨selector⟩⟨root⟩[/Selector]
+
+⟨ppa⟩ ::= [Selector]⟨postconditions⟩⟨ppasequence⟩[/Selector]
+
+⟨postconditions⟩ ::= ⟨SuccessNode⟩ | ⟨ppa⟩ |[Sequence]⟨postcondition⟩[/Sequence](5)
+
+⟨postcondition⟩ ::= ⟨postcondition⟩[PostCnd]⟨postconditiont⟩[/PostCnd] | [PostCnd]⟨postconditiont⟩[/PostCnd]
+
+⟨postconditiont⟩ ::= NeighbourObjects_⟨objects⟩ | NeighbourObjects ⟨sobjects⟩ | IsCarrying_⟨dobjects⟩ | NeighbourObjects_⟨dobjects⟩ | DidAvoidedObj_⟨sobjects⟩ | IsVisitedBefore_⟨sobjects⟩
+
+⟨ppasequence⟩ ::= [Sequence]⟨preconditions⟩[Act]⟨action⟩ [/Act][/Sequence] | [Sequence]⟨constraints⟩[Act]⟨action⟩[/Act][/Sequence] | [Sequence]⟨preconditions⟩⟨constraints⟩[Act]⟨action⟩[/Act][/Sequence]
+
+⟨preconditions⟩ ::= [Sequence]⟨precondition⟩[/Sequence]
+
+⟨precondition⟩ ::= ⟨precondition⟩[PreCnd]⟨preconditiont⟩[/PreCnd] | [PreCnd]⟨preconditiont⟩[/PreCnd]
+
+⟨preconditiont⟩ ::= IsDropable_⟨sobjects⟩ | NeighbourObjects_⟨objects⟩ | IsVisitedBefore_⟨sobjects⟩ | NeighbourObjects_⟨objects⟩_invert | IsVisitedBefore_⟨sobjects⟩_invert | IsCarrying_⟨dobjects⟩ | IsCarrying_⟨dobjects⟩_invert
+
+⟨constraints⟩ ::= [Sequence]⟨constraint⟩[/Sequence]
+
+⟨constraint⟩ ::= ⟨constraint⟩[Cnstr]⟨constraintt⟩[/Cnstr] | [Cnstr]⟨constraintt⟩[/Cnstr]
+
+⟨constraintt⟩ ::= CanMove | IsCarryable_⟨dobjects⟩ | IsDropable_⟨sobjects⟩
+
+⟨action⟩ ::= MoveTowards_⟨sobjects⟩ | Explore | CompositeSingleCarry_⟨dobjects⟩ | CompositeDrop_⟨dobjects⟩ | MoveAway_⟨sobjects⟩
+
+⟨objects⟩ ::= ⟨sobjects⟩ | ⟨dobjects⟩
+
+⟨sobjects⟩ ::= Hub|Sites
+
+⟨dobjects⟩ ::= Food|Debris
+
+⟨SuccessNode⟩ :: = [PostCnd]DummyNode[/PostCnd]

@@ -1,0 +1,40 @@
+#Simplified PPA grammar
+#- no debris
+#- task: grab food and move it to base (?)
+#- postconditions: 
+# Control flow
+
+<root> ::= <sequence> | <selector>
+
+<sequence> ::= [Sequence]<ppa>[/Sequence] | [Sequence]<root><root>[/Sequence] | [Sequence]<sequence><root>[/Sequence]
+
+<selector> ::= [Selector]<ppa>[/Selector] | [Selector]<root><root>[/Selector] | [Selector]<selector><root>[/Selector]
+
+<ppa> ::= [Selector]<postconditions><ppasequence>[/Selector]
+
+
+# PPA control flow
+
+<postconditions> ::= <SuccessNode> | <ppa> |[Sequence]<postcondition>[/Sequence] # None | another PPA | some
+
+<postcondition> ::= <postcondition>[PostCnd]<postconditiont>[/PostCnd] | [PostCnd]<postconditiont>[/PostCnd]
+
+<postconditiont> ::= NeighbourObjects_<objects>
+
+<ppasequence> ::= [Sequence] <preconditions> [Act]<action>[/Act] [/Sequence]
+
+<preconditions> ::= [Sequence]<precondition>[/Sequence]
+
+<precondition> ::= <precondition>[PreCnd]<preconditiont>[/PreCnd] | [PreCnd]<preconditiont>[/PreCnd]
+
+<preconditiont> ::= CanCarry_<objects> | CanDrop_<objects> | NeighbourObjects_<objects> | NeighbourObjects_<objects>_invert | IsCarrying_<objects> | IsCarrying_<objects>_invert
+
+<action> ::= GoTo_<objects> | CompositeRandomWalk | PickUp_<objects> | Drop_<objects>
+
+<objects> ::= <sobjects> | <dobjects>
+
+<sobjects> ::= Hub
+
+<dobjects> ::= Food
+
+<SuccessNode> ::= [PostCnd]DummyNode[/PostCnd]

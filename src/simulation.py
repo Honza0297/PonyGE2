@@ -8,7 +8,7 @@ from py_trees.composites import Sequence, Selector
 from src.swarm.behaviors import *
 from src.swarm.backend import TestBackend
 from src.swarm.gui import SimulationWindow
-from src.swarm.agent import Agent, Neighbourhood
+from src.swarm.agent import Agent, EvoAgent, Neighbourhood
 from src.swarm.objects import FoodSource, Hub
 from src.swarm.types import ObjectType
 
@@ -25,8 +25,8 @@ if __name__ == '__main__':
     backend = TestBackend(gui)
     agents = list()
     for i in range(NUM_OF_AGENS):
-        agent = Agent("agent" + str(i), sense_radius=6)
-
+        agent = EvoAgent("agent" + str(i), sense_radius=6)
+        """
         selector = Selector(name="root_selector", memory=True)
 
         sequence = Sequence(name="subroot_sequence", memory=True)
@@ -48,15 +48,15 @@ if __name__ == '__main__':
         sequence.add_children([move_towards_food, pick_food, move_towards_base, drop_food])
         selector.add_children([sequence, random_walk])
         tree = py_trees.trees.BehaviourTree(root=selector)
-        """randomWalk = src.swarm.behaviors.RandomWalk("RandWalk")
+        randomWalk = src.swarm.behaviors.RandomWalk("RandWalk")
         randomWalk.setup(agents[-1])
 
         move = src.swarm.behaviors.Move("MoveB")
         move.setup(agents[-1])
         root = py_trees.composites.Sequence(name="TestBehav", memory=True, children=[randomWalk, move])
 
-        tree = py_trees.trees.BehaviourTree(root=root)"""
-        agent.bt = tree
+        tree = py_trees.trees.BehaviourTree(root=root)
+        agent.bt_wrapper = tree"""
         agents.append(agent)
 
         backend.register_agent(agents[-1])

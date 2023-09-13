@@ -6,9 +6,7 @@ import xml.etree.ElementTree as ET
 import py_trees
 from py_trees.composites import Sequence, Selector  # noqa: F401
 
-"""
-Thisi is commented by now as I have no behaviors
-from swarms.behaviors.scbehaviors import (      # noqa: F401
+"""from swarms.behaviors.scbehaviors import (      # noqa: F401
     MoveTowards, MoveAway, Explore, CompositeSingleCarry,
     CompositeDrop, CompositeDropPheromone, CompositeSensePheromone,
     CompositeSendSignal, CompositeReceiveSignal,
@@ -20,8 +18,8 @@ from swarms.behaviors.sbehaviors import (       # noqa: F401
     DidAvoidedObj, IsCarryable, IsAgentDead, IsAttractivePheromone,
     IsRepulsivePheromone, IsSignalActive, SignalDoesNotExists,
     PheromoneExists, DummyNode
-    )
-"""
+    )"""
+
 from py_trees.decorators import SuccessIsRunning, Inverter
 
 
@@ -55,6 +53,7 @@ class BTConstruct:
         # print('root',root, len(root))
         def leafnode(root):
             node_text = root.text
+            # print(node_text)
             # If the behavior needs to look for specific item
             if node_text.find('_') != -1:
                 nodeval = node_text.split('_')
@@ -63,21 +62,32 @@ class BTConstruct:
                     method, item = nodeval
                     behavior = eval(method)(method + str(
                         self.agent.model.random.randint(
-                            100, 200)) + '_' + item+ '_' + root.tag)
+                            100, 200)) + '_' + item + '_' + root.tag)
+                    behavior.setup(0, self.agent, item)
                 else:
-                    method, item, _ = nodeval
-                    behavior = eval(method)(
-                        method + str(
+                    method, item, ntype = nodeval
+                    if ntype == 'invert':
+                        behavior = eval(method)(
+                            method + str(
+                                self.agent.model.random.randint(
+                                    100, 200)) + '_' + item + '_inv' + '_' + root.tag)
+                        behavior.setup(0, self.agent, item)
+                        behavior = Inverter(behavior)
+                    elif ntype == 'Normal':
+                        behavior = eval(method+ntype)(
+                            method + str(
+                                self.agent.model.random.randint(
+                                    100, 200)) + '_' + item + '_Normal' + '_' + root.tag)
+                        behavior.setup(0, self.agent, item)
+                    elif ntype == 'Avoid':
+                        behavior = eval(method)(method + str(
                             self.agent.model.random.randint(
-                                100, 200)) + '_' + item + '_inv' + '_' + root.tag)
-
-                behavior.setup(0, self.agent, item)
-                behavior = Inverter(behavior)
-
+                                100, 200)) + '_' + item + '_' + root.tag)
+                        behavior.setup(0, self.agent, item)
             else:
                 method = node_text
                 behavior = eval(method)(method + str(
-                    self.agent.model.random.randint(100, 200)))
+                    self.agent.model.random.randint(100, 200)) + '_' + root.tag)
                 behavior.setup(0, self.agent, None)
             return behavior
 
@@ -104,7 +114,7 @@ class BTConstruct:
                     pass
             return list1
 
-    def bt_from_xml(self):
+    def construct(self):
         """Create a tree from xml."""
         if self.xmlstring is not None:
             self.xmlfy()
@@ -117,7 +127,9 @@ class BTConstruct:
         else:
             print("Cannont create BT. Check the filename or stream")
             exit()
-        # print('root tree', self.root)
+        # print('root tree', self.root, dir(self.root))
+        # print(list(self.root.getiterator()))
+        # print(list(self.root))
         whole_list = self.create_bt(self.root)
         top = eval(self.root.tag)('Root' + self.root.tag)
         # print('whole list', whole_list)

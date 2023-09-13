@@ -10,6 +10,7 @@ from py_trees.decorators import Inverter
 
 
 # TODO: keys na blackboardu dat jako typy do types.py
+# TODO: make agent memoryful - classes Memorize/Forget/Remember
 class ObjectAtDist(py_trees.behaviour.Behaviour):
     """
     Checks if there are objects of the given type in the given distance.
@@ -240,6 +241,9 @@ class Move(py_trees.behaviour.Behaviour):
 class IsCarrying(py_trees.behaviour.Behaviour):
     def __init__(self, name):
         super(IsCarrying, self).__init__(name)
+        self.quantity = None
+        self.item_type = None
+        self.agent = None
 
     def setup(self, agent, item_type, quantity=1):
         self.agent = agent
