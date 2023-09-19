@@ -1,6 +1,6 @@
 from collections import defaultdict
 
-from algorithm.parameters import params
+#from algorithm.parameters import params
 from numpy import isnan
 from utilities.fitness.math_functions import percentile
 

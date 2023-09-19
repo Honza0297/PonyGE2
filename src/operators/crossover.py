@@ -1,13 +1,13 @@
 from random import choice, randint, random, sample
 
-from algorithm.parameters import params
+#from algorithm.parameters import params
 from representation import individual
 from representation.latent_tree import latent_tree_crossover, \
     latent_tree_repair
 from utilities.representation.check_methods import check_ind
 
 
-def crossover(parents):
+def crossover(parents, agent=None):
     """
     Perform crossover on a population of individuals. The size of the crossover
     population is defined as params['GENERATION_SIZE'] rather than params[
@@ -22,13 +22,13 @@ def crossover(parents):
     # Initialise an empty population.
     cross_pop = []
 
-    while len(cross_pop) < params['GENERATION_SIZE']:
+    while len(cross_pop) < agent.GE_params['GENERATION_SIZE']:
 
         # Randomly choose two parents from the parent population.
         inds_in = sample(parents, 2)
 
         # Perform crossover on chosen parents.
-        inds_out = crossover_inds(inds_in[0], inds_in[1])
+        inds_out = crossover_inds(inds_in[0], inds_in[1], agent)
 
         if inds_out is None:
             # Crossover failed.
@@ -42,7 +42,7 @@ def crossover(parents):
     return cross_pop
 
 
-def crossover_inds(parent_0, parent_1):
+def crossover_inds(parent_0, parent_1, agent=None):
     """
     Perform crossover on two selected individuals.
     
@@ -58,16 +58,16 @@ def crossover_inds(parent_0, parent_1):
     ind_1 = parent_1.deep_copy()
 
     # Crossover cannot be performed on invalid individuals.
-    if not params['INVALID_SELECTION'] and (ind_0.invalid or ind_1.invalid):
+    if not agent.GE_params['INVALID_SELECTION'] and (ind_0.invalid or ind_1.invalid):
         s = "operators.crossover.crossover\nError: invalid individuals " \
             "selected for crossover."
         raise Exception(s)
 
     # Perform crossover on ind_0 and ind_1.
-    inds = params['CROSSOVER'](ind_0, ind_1)
+    inds = agent.GE_params['CROSSOVER'](ind_0, ind_1, agent=agent)
 
     # Check each individual is ok (i.e. does not violate specified limits).
-    checks = [check_ind(ind, "crossover") for ind in inds]
+    checks = [check_ind(ind, "crossover", agent=agent) for ind in inds]
 
     if any(checks):
         # An individual violates a limit.
@@ -78,7 +78,7 @@ def crossover_inds(parent_0, parent_1):
         return inds
 
 
-def variable_onepoint(p_0, p_1):
+def variable_onepoint(p_0, p_1, agent=None):
     """
     Given two individuals, create two children using one-point crossover and
     return them. A different point is selected on each genome for crossover
@@ -96,26 +96,26 @@ def variable_onepoint(p_0, p_1):
     genome_0, genome_1 = p_0.genome, p_1.genome
 
     # Uniformly generate crossover points.
-    max_p_0, max_p_1 = get_max_genome_index(p_0, p_1)
+    max_p_0, max_p_1 = get_max_genome_index(p_0, p_1, agent)
 
     # Select unique points on each genome for crossover to occur.
     pt_0, pt_1 = randint(1, max_p_0), randint(1, max_p_1)
 
     # Make new chromosomes by crossover: these slices perform copies.
-    if random() < params['CROSSOVER_PROBABILITY']:
+    if random() < agent.GE_params['CROSSOVER_PROBABILITY']:
         c_0 = genome_0[:pt_0] + genome_1[pt_1:]
         c_1 = genome_1[:pt_1] + genome_0[pt_0:]
     else:
         c_0, c_1 = genome_0[:], genome_1[:]
 
     # Put the new chromosomes into new individuals.
-    ind_0 = individual.Individual(c_0, None)
-    ind_1 = individual.Individual(c_1, None)
+    ind_0 = individual.Individual(c_0, None, agent=agent)
+    ind_1 = individual.Individual(c_1, None, agent=agent)
 
     return [ind_0, ind_1]
 
 
-def fixed_onepoint(p_0, p_1):
+def fixed_onepoint(p_0, p_1, agent=None):
     """
     Given two individuals, create two children using one-point crossover and
     return them. The same point is selected on both genomes for crossover
@@ -138,7 +138,7 @@ def fixed_onepoint(p_0, p_1):
     pt = randint(1, min(max_p_0, max_p_1))
 
     # Make new chromosomes by crossover: these slices perform copies.
-    if random() < params['CROSSOVER_PROBABILITY']:
+    if random() < agent.GE_params['CROSSOVER_PROBABILITY']:
         c_0 = genome_0[:pt] + genome_1[pt:]
         c_1 = genome_1[:pt] + genome_0[pt:]
     else:
@@ -151,7 +151,7 @@ def fixed_onepoint(p_0, p_1):
     return [ind_0, ind_1]
 
 
-def fixed_twopoint(p_0, p_1):
+def fixed_twopoint(p_0, p_1, agent=None):
     """
     Given two individuals, create two children using two-point crossover and
     return them. The same points are selected on both genomes for crossover
@@ -174,7 +174,7 @@ def fixed_twopoint(p_0, p_1):
     pt_0, pt_1 = min([a, b]), max([a, b])
 
     # Make new chromosomes by crossover: these slices perform copies.
-    if random() < params['CROSSOVER_PROBABILITY']:
+    if random() < agent.GE_params['CROSSOVER_PROBABILITY']:
         c_0 = genome_0[:pt_0] + genome_1[pt_0:pt_1] + genome_0[pt_1:]
         c_1 = genome_1[:pt_0] + genome_0[pt_0:pt_1] + genome_1[pt_1:]
     else:
@@ -187,7 +187,7 @@ def fixed_twopoint(p_0, p_1):
     return [ind_0, ind_1]
 
 
-def variable_twopoint(p_0, p_1):
+def variable_twopoint(p_0, p_1, agent=None):
     """
     Given two individuals, create two children using two-point crossover and
     return them. Different points are selected on both genomes for crossover
@@ -212,7 +212,7 @@ def variable_twopoint(p_0, p_1):
     pt_2, pt_3 = min([a_1, b_1]), max([a_1, b_1])
 
     # Make new chromosomes by crossover: these slices perform copies.
-    if random() < params['CROSSOVER_PROBABILITY']:
+    if random() < agent.GE_params['CROSSOVER_PROBABILITY']:
         c_0 = genome_0[:pt_0] + genome_1[pt_2:pt_3] + genome_0[pt_1:]
         c_1 = genome_1[:pt_2] + genome_0[pt_0:pt_1] + genome_1[pt_3:]
     else:
@@ -225,7 +225,7 @@ def variable_twopoint(p_0, p_1):
     return [ind_0, ind_1]
 
 
-def subtree(p_0, p_1):
+def subtree(p_0, p_1, agent=None):
     """
     Given two individuals, create two children using subtree crossover and
     return them. Candidate subtrees are selected based on matching
@@ -318,7 +318,7 @@ def subtree(p_0, p_1):
 
         return tree0, tree1
 
-    def intersect(l0, l1):
+    def intersect(l0, l1, agent=None):
         """
         Returns the intersection of two sets of labels of nodes of
         derivation trees. Only returns matching non-terminal nodes across
@@ -335,12 +335,12 @@ def subtree(p_0, p_1):
 
         # Find only the non-terminals present in the intersecting set of
         # labels.
-        shared_nodes = [i for i in shared_nodes if i in params[
+        shared_nodes = [i for i in shared_nodes if i in agent.GE_params[
             'BNF_GRAMMAR'].non_terminals]
 
         return sorted(shared_nodes)
 
-    if random() > params['CROSSOVER_PROBABILITY']:
+    if random() > agent.GE_params['CROSSOVER_PROBABILITY']:
         # Crossover is not to be performed, return entire individuals.
         ind0 = p_1
         ind1 = p_0
@@ -391,7 +391,7 @@ def subtree(p_0, p_1):
     return [ind0, ind1]
 
 
-def get_max_genome_index(ind_0, ind_1):
+def get_max_genome_index(ind_0, ind_1, agent=None):
     """
     Given two individuals, return the maximum index on each genome across
     which operations are to be performed. This can be either the used
@@ -403,7 +403,7 @@ def get_max_genome_index(ind_0, ind_1):
              performed.
     """
 
-    if params['WITHIN_USED']:
+    if agent.GE_params['WITHIN_USED']:
         # Get used codons range.
 
         if ind_0.invalid:
@@ -427,7 +427,7 @@ def get_max_genome_index(ind_0, ind_1):
     return max_p_0, max_p_1
 
 
-def LTGE_crossover(p_0, p_1):
+def LTGE_crossover(p_0, p_1, agent=None):
     """Crossover in the LTGE representation."""
 
     # crossover and repair.
@@ -437,10 +437,10 @@ def LTGE_crossover(p_0, p_1):
     # expected to be different.
     g_0, ph_0 = latent_tree_repair(
         latent_tree_crossover(p_0.genome, p_1.genome),
-        params['BNF_GRAMMAR'], params['MAX_TREE_DEPTH'])
+        agent.GE_params['BNF_GRAMMAR'], agent.GE_params['MAX_TREE_DEPTH'])
     g_1, ph_1 = latent_tree_repair(
         latent_tree_crossover(p_0.genome, p_1.genome),
-        params['BNF_GRAMMAR'], params['MAX_TREE_DEPTH'])
+        agent.GE_params['BNF_GRAMMAR'], agent.GE_params['MAX_TREE_DEPTH'])
 
     # wrap up in Individuals and fix up various Individual attributes
     ind_0 = individual.Individual(g_0, None, False)

@@ -3,7 +3,7 @@ from sys import stdout
 from time import time
 
 import numpy as np
-from algorithm.parameters import params
+#from algorithm.parameters import params
 from utilities.algorithm.NSGA2 import compute_pareto_metrics
 from utilities.algorithm.state import create_state
 from utilities.stats import trackers

@@ -1,6 +1,6 @@
 from multiprocessing import Pool
 
-from algorithm.parameters import params
+#from algorithm.parameters import params
 from fitness.evaluation import evaluate_fitness
 from operators.initialisation import initialisation
 from stats.stats import get_stats, stats
@@ -8,7 +8,7 @@ from utilities.algorithm.initialise_run import pool_init
 from utilities.stats import trackers
 
 
-def search_loop():
+def search_loop(agent=None):
     """
     This is a standard search process for an evolutionary algorithm. Loop over
     a given number of generations.
@@ -17,13 +17,13 @@ def search_loop():
     the specified number of generations.
     """
 
-    if params['MULTICORE']:
+    if agent.GE_params['MULTICORE']:
         # initialize pool once, if multi-core is enabled
-        params['POOL'] = Pool(processes=params['CORES'], initializer=pool_init,
-                              initargs=(params,))  # , maxtasksperchild=1)
+        agent.GE_params['POOL'] = Pool(processes=agent.GE_params['CORES'], initializer=pool_init,
+                              initargs=(agent.GE_params,))  # , maxtasksperchild=1)
 
     # Initialise population
-    individuals = initialisation(params['POPULATION_SIZE'])
+    individuals = initialisation(agent.GE_params['POPULATION_SIZE'])
 
     # Evaluate initial population
     individuals = evaluate_fitness(individuals)
@@ -32,7 +32,7 @@ def search_loop():
     get_stats(individuals)
 
     # Traditional GE
-    for generation in range(1, (params['GENERATIONS'] + 1)):
+    for generation in range(1, (agent.GE_params['GENERATIONS'] + 1)):
         stats['gen'] = generation
 
         # New generation

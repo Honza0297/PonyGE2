@@ -2,7 +2,7 @@ from math import floor
 from re import DOTALL, MULTILINE, finditer, match
 from sys import maxsize
 
-from algorithm.parameters import params
+#from algorithm.parameters import params
 
 
 class Grammar(object):
@@ -10,13 +10,14 @@ class Grammar(object):
     Parser for Backus-Naur Form (BNF) Context-Free Grammars.
     """
 
-    def __init__(self, file_name):
+    def __init__(self, file_name, agent=None):
         """
         Initialises an instance of the grammar class. This instance is used
         to parse a given file_name grammar.
 
         :param file_name: A specified BNF grammar file.
         """
+        self.agent=agent
 
         if file_name.endswith("pybnf"):
             # Use python filter for parsing grammar output as grammar output
@@ -35,11 +36,11 @@ class Grammar(object):
 
         # Initialise dicts for terminals and non-terminals, set params.
         self.non_terminals, self.terminals = {}, {}
-        self.start_rule, self.codon_size = None, params['CODON_SIZE']
+        self.start_rule, self.codon_size = None, self.agent.GE_params['CODON_SIZE']
         self.min_path, self.max_arity, self.min_ramp = None, None, None
 
         # Set regular expressions for parsing BNF grammar.
-        if params["ATTRIBUTE_GRAMMAR"]:
+        if self.agent.GE_params["ATTRIBUTE_GRAMMAR"]:
             # WARNING { cannot be a valid nonterminal in case of attribute grammar
             self.ruleregex = '(?P<rulename><\S+>)\s*::=\s*(?P<production>(?:(?=\#)\#[^\r\n]*|(?!<\S+>\s*::=|\{).+?)+)\s*(?P<attr_code>(?:(?!<\S+>\s*::=)(?:\s*\|?\s*\{.*?\})+))'
             self.productionregex = '(?=\#)(?:\#.*$)|(?!\#)\s*(?P<production>(?:[^\'\"\|\#\{\s]+?[^\'\"\|\#\{]*[^\'\"\|\#\{\s]*|\'.*?\'|".*?")+?)|\s*(?!\#)(?P<attr_code>(?:\{(?:.*?\s*?]*)*\})+)'
@@ -75,16 +76,16 @@ class Grammar(object):
         # Calculate the total number of derivation tree permutations and
         # combinations that can be created by a grammar at a range of depths.
         self.check_permutations()
-        print(hasattr(params['INITIALISATION'], "ramping"))
-        if params['MIN_INIT_TREE_DEPTH']:
+        print(hasattr(self.agent.GE_params['INITIALISATION'], "ramping"))
+        if self.agent.GE_params['MIN_INIT_TREE_DEPTH']:
             # Set the minimum ramping tree depth from the command line.
-            self.min_ramp = params['MIN_INIT_TREE_DEPTH']
-        elif hasattr(params['INITIALISATION'], "ramping"):
+            self.min_ramp = self.agent.GE_params['MIN_INIT_TREE_DEPTH']
+        elif hasattr(self.agent.GE_params['INITIALISATION'], "ramping"):
             # Set the minimum depth at which ramping can start where we can
             # have unique solutions (no duplicates).
             self.get_min_ramp_depth()
 
-        if params['REVERSE_MAPPING_TARGET'] or params['TARGET_SEED_FOLDER']:
+        if self.agent.GE_params['REVERSE_MAPPING_TARGET'] or self.agent.GE_params['TARGET_SEED_FOLDER']:
             # Initialise dicts for reverse-mapping GE individuals.
             self.concat_NTs, self.climb_NTs = {}, {}
 
@@ -147,14 +148,14 @@ class Grammar(object):
                         try:
                             if m.group('range') == "dataset_n_vars":
                                 # number of columns from dataset
-                                n = params['FITNESS_FUNCTION'].n_vars
+                                n = self.agent.GE_params['FITNESS_FUNCTION'].n_vars
                             elif m.group('range') == "dataset_n_is":
                                 # number of input symbols (see
                                 # if_else_classifier.py)
-                                n = params['FITNESS_FUNCTION'].n_is
+                                n = self.agent.GE_params['FITNESS_FUNCTION'].n_is
                             elif m.group('range') == "dataset_n_os":
                                 # number of output symbols
-                                n = params['FITNESS_FUNCTION'].n_os
+                                n = self.agent.GE_params['FITNESS_FUNCTION'].n_os
                             else:
                                 # assume it's just an int
                                 n = int(m.group('range'))
@@ -250,11 +251,13 @@ class Grammar(object):
                         "choices": tmp_productions,
                         "no_choices": len(tmp_productions)}
 
-                    if len(tmp_productions) == 1:
+                    #23/09/19 commented out
+                    """if len(tmp_productions) == 1:
                         # Unit productions.
                         print("Warning: Grammar contains unit production "
                               "for production rule", rule.group('rulename'))
-                        print("         Unit productions consume GE codons.")
+                        print("         Unit productions consume GE codons.")"""
+
                 else:
                     # Conflicting rules with the same name.
                     raise ValueError("lhs should be unique",
@@ -269,7 +272,7 @@ class Grammar(object):
                 # NOTE Deadline: konec týdne
 
                 # Add attributes and code parts to the apropriate places
-                if params["ATTRIBUTE_GRAMMAR"]:
+                if self.agent.GE_params["ATTRIBUTE_GRAMMAR"]:
                     index = 0
                     # for every code block in the rule
                     for attr_code_block in finditer(self.productionregex, rule.group("attr_code"), MULTILINE):
@@ -466,7 +469,7 @@ class Grammar(object):
 
         # Set the number of depths permutations are calculated for
         # (starting from the minimum path of the grammar)
-        ramps = params['PERMUTATION_RAMPS']
+        ramps = self.agent.GE_params['PERMUTATION_RAMPS']
 
         perms_list = []
         if self.max_arity > self.min_path:
@@ -605,8 +608,8 @@ class Grammar(object):
         :return: The minimum depth at which unique solutions can be generated
         """
 
-        max_tree_depth = params['MAX_INIT_TREE_DEPTH']
-        size = params['POPULATION_SIZE']
+        max_tree_depth = self.agent.GE_params['MAX_INIT_TREE_DEPTH']
+        size = self.agent.GE_params['POPULATION_SIZE']
 
         # Specify the range of ramping depths
         depths = range(self.min_path, max_tree_depth + 1)
@@ -696,6 +699,6 @@ class Grammar(object):
                 'expanded': False,
                 'recursive': True,
                 'b_factor': 0, }
-            if params["ATTRIBUTE_GRAMMAR"]:
+            if self.agent.GE_params["ATTRIBUTE_GRAMMAR"]:
                 self.non_terminals[non_terminal]['attributes'] = {}
 

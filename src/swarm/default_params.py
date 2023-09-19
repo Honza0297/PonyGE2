@@ -1,4 +1,10 @@
-params = {
+from multiprocessing import cpu_count
+from socket import gethostname
+
+hostname = gethostname().split('.')
+machine_name = hostname[0]
+
+default_params = {
     # Set default step and search loop functions
     'SEARCH_LOOP': 'search_loop',
     'STEP': 'step',

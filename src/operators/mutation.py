@@ -1,13 +1,13 @@
 from random import choice, randint, random
 
-from algorithm.parameters import params
+#from algorithm.parameters import params
 from representation import individual
 from representation.derivation import generate_tree
 from representation.latent_tree import latent_tree_mutate, latent_tree_repair
 from utilities.representation.check_methods import check_ind
 
 
-def mutation(pop):
+def mutation(pop, agent=None):
     """
     Perform mutation on a population of individuals. Calls mutation operator as
     specified in params dictionary.
@@ -23,26 +23,26 @@ def mutation(pop):
     for ind in pop:
 
         # If individual has no genome, default to subtree mutation.
-        if not ind.genome and params['NO_MUTATION_INVALIDS']:
+        if not ind.genome and agent.GE_params['NO_MUTATION_INVALIDS']:
             new_ind = subtree(ind)
 
         else:
             # Perform mutation.
-            new_ind = params['MUTATION'](ind)
+            new_ind = agent.GE_params['MUTATION'](ind, agent=agent)
 
         # Check ind does not violate specified limits.
-        check = check_ind(new_ind, "mutation")
+        check = check_ind(new_ind, "mutation", agent=agent)
 
         while check:
             # Perform mutation until the individual passes all tests.
 
             # If individual has no genome, default to subtree mutation.
-            if not ind.genome and params['NO_MUTATION_INVALIDS']:
+            if not ind.genome and agent.GE_params['NO_MUTATION_INVALIDS']:
                 new_ind = subtree(ind)
 
             else:
                 # Perform mutation.
-                new_ind = params['MUTATION'](ind)
+                new_ind = agent.GE_params['MUTATION'](ind)
 
             # Check ind does not violate specified limits.
             check = check_ind(new_ind, "mutation")
@@ -53,7 +53,7 @@ def mutation(pop):
     return new_pop
 
 
-def int_flip_per_codon(ind):
+def int_flip_per_codon(ind, agent=None):
     """
     Mutate the genome of an individual by randomly choosing a new int with
     probability p_mut. Works per-codon. Mutation is performed over the
@@ -65,15 +65,15 @@ def int_flip_per_codon(ind):
     """
 
     # Set effective genome length over which mutation will be performed.
-    eff_length = get_effective_length(ind)
+    eff_length = get_effective_length(ind, agent=agent)
 
     if not eff_length:
         # Linear mutation cannot be performed on this individual.
         return ind
 
     # Set mutation probability. 
-    if params['MUTATION_PROBABILITY'] is not None:
-        p_mut = params['MUTATION_PROBABILITY']
+    if agent.GE_params['MUTATION_PROBABILITY'] is not None:
+        p_mut = agent.GE_params['MUTATION_PROBABILITY']
     else:
         # Default is 1 divided by genome length.
         p_mut = 1.0 / eff_length
@@ -82,10 +82,10 @@ def int_flip_per_codon(ind):
     # genome as defined by the within_used flag.
     for i in range(eff_length):
         if random() < p_mut:
-            ind.genome[i] = randint(0, params['CODON_SIZE'])
+            ind.genome[i] = randint(0, agent.GE_params['CODON_SIZE'])
 
     # Re-build a new individual with the newly mutated genetic information.
-    new_ind = individual.Individual(ind.genome, None)
+    new_ind = individual.Individual(ind.genome, None, agent=agent)
 
     return new_ind
 
@@ -108,9 +108,9 @@ def int_flip_per_ind(ind):
         # Linear mutation cannot be performed on this individual.
         return ind
 
-    for _ in range(params['MUTATION_EVENTS']):
+    for _ in range(agent.GE_params['MUTATION_EVENTS']):
         idx = randint(0, eff_length - 1)
-        ind.genome[idx] = randint(0, params['CODON_SIZE'])
+        ind.genome[idx] = randint(0, agent.GE_params['CODON_SIZE'])
 
     # Re-build a new individual with the newly mutated genetic information.
     new_ind = individual.Individual(ind.genome, None)
@@ -139,16 +139,16 @@ def subtree(ind):
         """
 
         # Find the list of nodes we can mutate from.
-        targets = ind_tree.get_target_nodes([], target=params[
+        targets = ind_tree.get_target_nodes([], target=agent.GE_params[
             'BNF_GRAMMAR'].non_terminals)
 
         # Pick a node.
         new_tree = choice(targets)
 
         # Set the depth limits for the new subtree.
-        if params['MAX_TREE_DEPTH']:
+        if agent.GE_params['MAX_TREE_DEPTH']:
             # Set the limit to the tree depth.
-            max_depth = params['MAX_TREE_DEPTH'] - new_tree.depth
+            max_depth = agent.GE_params['MAX_TREE_DEPTH'] - new_tree.depth
 
         else:
             # There is no limit to tree depth.
@@ -168,7 +168,7 @@ def subtree(ind):
         tail = ind.genome[ind.used_codons:]
 
     # Allows for multiple mutation events should that be desired.
-    for i in range(params['MUTATION_EVENTS']):
+    for i in range(agent.GE_params['MUTATION_EVENTS']):
         ind.tree = subtree_mutate(ind.tree)
 
     # Re-build a new individual with the newly mutated genetic information.
@@ -180,7 +180,7 @@ def subtree(ind):
     return ind
 
 
-def get_effective_length(ind):
+def get_effective_length(ind, agent=None):
     """
     Return the effective length of the genome for linear mutation.
 
@@ -197,7 +197,7 @@ def get_effective_length(ind):
         # Individual is invalid.
         eff_length = len(ind.genome)
 
-    elif params['WITHIN_USED']:
+    elif agent.GE_params['WITHIN_USED']:
         eff_length = min(len(ind.genome), ind.used_codons)
 
     else:
@@ -211,7 +211,7 @@ def LTGE_mutation(ind):
 
     # mutate and repair.
     g, ph = latent_tree_repair(latent_tree_mutate(ind.genome),
-                               params['BNF_GRAMMAR'], params['MAX_TREE_DEPTH'])
+                               agent.GE_params['BNF_GRAMMAR'], agent.GE_params['MAX_TREE_DEPTH'])
 
     # wrap up in an Individual and fix up various Individual attributes
     ind = individual.Individual(g, None, False)

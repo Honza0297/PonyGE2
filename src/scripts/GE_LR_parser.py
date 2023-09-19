@@ -8,7 +8,7 @@ check_python_version()
 
 import sys
 
-from algorithm.parameters import params, set_params
+from algorithm.parameters import set_params
 from operators.subtree_parse import get_NT_from_str, get_num_from_str, \
     generate_key_and_check, check_snippets_for_solution
 from representation.tree import Tree

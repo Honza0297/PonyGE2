@@ -1,7 +1,7 @@
 import re
 
 import scipy
-from algorithm.parameters import params
+#from algorithm.parameters import params
 from utilities.fitness.math_functions import *
 
 

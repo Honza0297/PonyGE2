@@ -3,8 +3,6 @@ Generic BoardModel.
 """
 from PyQt5 import QtCore
 from src.swarm.types import ObjectType
-from src.swarm.agent import Agent
-from src.swarm.objects import EnvironmentObject
 
 class BoardModel:
     def __init__(self, dimension):

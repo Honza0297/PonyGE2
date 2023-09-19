@@ -2,7 +2,7 @@ import numpy as np
 
 np.seterr(all="raise")
 
-from algorithm.parameters import params
+#from algorithm.parameters import params
 from utilities.fitness.get_data import get_data
 from utilities.fitness.math_functions import *
 from utilities.fitness.optimize_constants import optimize_constants
@@ -26,19 +26,19 @@ class supervised_learning(base_ff):
     should not be instantiated.
     """
 
-    def __init__(self):
+    def __init__(self, agent=None):
         # Initialise base fitness function class.
         super().__init__()
 
         # Get training and test data
         self.training_in, self.training_exp, self.test_in, self.test_exp = \
-            get_data(params['DATASET_TRAIN'], params['DATASET_TEST'])
+            get_data(agent.GE_params['DATASET_TRAIN'], agent.GE_params['DATASET_TEST'], agent=agent)
 
         # Find number of variables.
         self.n_vars = np.shape(self.training_in)[1] # sklearn convention
 
         # Regression/classification-style problems use training and test data.
-        if params['DATASET_TEST']:
+        if agent.GE_params['DATASET_TEST']:
             self.training_test = True
 
     def evaluate(self, ind, **kwargs):

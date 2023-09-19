@@ -5,6 +5,7 @@ from typing import Type
 import xml.etree.ElementTree as ET
 import py_trees
 from py_trees.composites import Sequence, Selector  # noqa: F401
+import pydot
 
 """
 Thisi is commented by now as I have no behaviors
@@ -22,6 +23,19 @@ from swarms.behaviors.sbehaviors import (       # noqa: F401
     PheromoneExists, DummyNode
     )
 """
+import src.swarm.types as types
+from src.swarm.behaviors import ( # noqa 401
+    ObjectAtDist as NeighbourObjects,
+    CompositeRandomWalk,
+    DummyNode,
+    IsCarrying,
+    CanDrop,
+    CanCarry,
+    GoTo,
+    Drop,
+    PickUp
+)
+
 from py_trees.decorators import SuccessIsRunning, Inverter
 
 
@@ -52,7 +66,7 @@ class BTConstruct:
 
     def create_bt(self, root):
         """Recursive method to construct BT."""
-        # print('root',root, len(root))
+        #print('root',root, len(root))
         def leafnode(root):
             node_text = root.text
             # If the behavior needs to look for specific item
@@ -62,23 +76,25 @@ class BTConstruct:
                 if len(nodeval) == 2:
                     method, item = nodeval
                     behavior = eval(method)(method + str(
-                        self.agent.model.random.randint(
+                        self.agent.backend.random.randint(
                             100, 200)) + '_' + item+ '_' + root.tag)
                 else:
                     method, item, _ = nodeval
                     behavior = eval(method)(
                         method + str(
-                            self.agent.model.random.randint(
+                            self.agent.backend.random.randint(
                                 100, 200)) + '_' + item + '_inv' + '_' + root.tag)
+                if type(item) is str:
+                    item = types.ObjectType.str2enum(item)
 
-                behavior.setup(0, self.agent, item)
-                behavior = Inverter(behavior)
+                behavior.setup(self.agent, item)
+                #behavior = Inverter(behavior)
 
             else:
                 method = node_text
                 behavior = eval(method)(method + str(
-                    self.agent.model.random.randint(100, 200)))
-                behavior.setup(0, self.agent, None)
+                    self.agent.backend.random.randint(100, 200)))
+                behavior.setup(self.agent)
             return behavior
 
         if len(list(root)) == 0:
@@ -88,7 +104,7 @@ class BTConstruct:
             for node in list(root):
                 if node.tag in ['Selector', 'Sequence']:
                     composits = eval(node.tag)(node.tag + str(
-                        self.agent.model.random.randint(10, 90)))
+                        self.agent.backend.random.randint(10, 90)), memory=True if node.tag == "Sequence" else False)
                     # print('composits', composits, node)
                 list1.append(self.create_bt(node))
                 try:
@@ -119,7 +135,7 @@ class BTConstruct:
             exit()
         # print('root tree', self.root)
         whole_list = self.create_bt(self.root)
-        top = eval(self.root.tag)('Root' + self.root.tag)
+        top = eval(self.root.tag)('Root' + self.root.tag,memory=True if self.root.tag == "Sequence" else False)
         # print('whole list', whole_list)
         # print(dir(top))
         top.add_children(whole_list)
@@ -127,6 +143,9 @@ class BTConstruct:
         # py_trees.logging.level = py_trees.logging.Level.DEBUG
         # py_trees.display.print_ascii_tree(top)
 
-    def visualize(self, name='bt.png'):
+    def visualize(self, name='bt.png', mode="d"):
         """Save bt graph to a file."""
-        py_trees.display.render_dot_tree(self.behaviour_tree.root, name=name)
+        if mode == "d": # display
+            print(py_trees.display.ascii_tree(self.behaviour_tree.root))
+        else:
+            py_trees.display.render_dot_tree(self.behaviour_tree.root, name=name)

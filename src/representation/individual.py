@@ -1,7 +1,7 @@
 import numpy as np
 
 from algorithm.mapper import mapper
-from algorithm.parameters import params
+#from algorithm.parameters import params
 from re import finditer, match
 import copy
 
@@ -241,7 +241,7 @@ class Individual(object):
     A GE individual.
     """
 
-    def __init__(self, genome, ind_tree, map_ind=True):
+    def __init__(self, genome, ind_tree, map_ind=True, agent=None):
         """
         Initialise an instance of the individual class (i.e. create a new
         individual).
@@ -252,21 +252,22 @@ class Individual(object):
         :param map_ind: A boolean flag that indicates whether or not an
         individual needs to be mapped.
         """
+        self.agent=agent
 
         if map_ind:
             # The individual needs to be mapped from the given input
             # parameters.
             self.phenotype, self.genome, self.tree, self.nodes, self.invalid, \
-                self.depth, self.used_codons = mapper(genome, ind_tree)
+                self.depth, self.used_codons = mapper(genome, ind_tree, agent=agent)
 
         else:
             # The individual does not need to be mapped.
             self.genome, self.tree = genome, ind_tree
 
-        self.fitness = params['FITNESS_FUNCTION'].default_fitness
+        self.fitness = self.agent.GE_params['FITNESS_FUNCTION'].default_fitness
         self.runtime_error = False
         self.name = None
-        if params["ATTRIBUTE_GRAMMAR"]:
+        if self.agent.GE_params["ATTRIBUTE_GRAMMAR"]:
             self.make_code_tree()
             self.code_tree.run()
             self.check_attribute_validity()
@@ -294,7 +295,7 @@ class Individual(object):
         elif np.isnan(other.fitness):
             return False
         else:
-            return self.fitness < other.fitness if params[
+            return self.fitness < other.fitness if self.agent.GE_params[
                 'FITNESS_FUNCTION'].maximise else other.fitness < self.fitness
 
     def __le__(self, other):
@@ -316,7 +317,7 @@ class Individual(object):
         elif np.isnan(other.fitness):
             return False
         else:
-            return self.fitness <= other.fitness if params[
+            return self.fitness <= other.fitness if self.agent.GE_params[
                 'FITNESS_FUNCTION'].maximise else other.fitness <= self.fitness
 
     def __str__(self):
@@ -348,7 +349,7 @@ class Individual(object):
         :return: A unique copy of the individual.
         """
 
-        if not params['GENOME_OPERATIONS']:
+        if not self.agent.GE_params['GENOME_OPERATIONS']:
             # Create a new unique copy of the tree.
             new_tree = self.tree.__copy__()
 
@@ -356,7 +357,7 @@ class Individual(object):
             new_tree = None
 
         # Create a copy of self by initialising a new individual.
-        new_ind = Individual(self.genome.copy(), new_tree, map_ind=False)
+        new_ind = Individual(self.genome.copy(), new_tree, map_ind=False, agent=self.agent)
 
         # Set new individual parameters (no need to map genome to new
         # individual).
@@ -365,7 +366,7 @@ class Individual(object):
         new_ind.used_codons = self.used_codons
         new_ind.runtime_error = self.runtime_error
 
-        if params["ATTRIBUTE_GRAMMAR"]:
+        if self.agent.GE_params["ATTRIBUTE_GRAMMAR"]:
             new_ind.code_tree = copy.deepcopy(self.code_tree)
 
         return new_ind
@@ -382,7 +383,7 @@ class Individual(object):
         """
 
         # Evaluate fitness using specified fitness function.
-        self.fitness = params['FITNESS_FUNCTION'](self)
+        self.fitness = self.agent.GE_params['FITNESS_FUNCTION'](self)
 
-        if params['MULTICORE']:
+        if self.agent.GE_params['MULTICORE']:
             return self

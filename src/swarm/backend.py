@@ -8,7 +8,7 @@ from src.swarm.models import BoardModel, TileModel
 from src.swarm.packets import *
 from src.swarm.objects import *
 from src.swarm.types import ObjectType
-
+import random
 
 class Backend(threading.Thread):
     def __init__(self, gui):
@@ -17,11 +17,13 @@ class Backend(threading.Thread):
 
         self.board_model = BoardModel(gui.dimension)
         self.agents = list()
+        self.random = random
 
     def register_agent(self, agent):
         if agent not in self.agents:
             self.agents.append(agent)
             agent.backend = self
+            agent.setup()
         else:
             raise KeyError("Agent name already registered: {}", agent.name)
 
@@ -59,6 +61,7 @@ class TestBackend(Backend):
             #self.gui.update(self.board_model)
             for agent in self.agents:
                 agent.step()
+                agent.bt_wrapper.visualize()
             time.sleep(0.2)
 
     def pick_up_req(self, agent, pos):

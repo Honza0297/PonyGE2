@@ -13,7 +13,7 @@ from src.swarm.objects import FoodSource, Hub
 from src.swarm.types import ObjectType
 
 NUM_OF_AGENS = 10
-BOARD_SIZE = 17
+BOARD_SIZE = 15
 if __name__ == '__main__':
 
     logging.basicConfig(level=logging.DEBUG)
@@ -25,7 +25,7 @@ if __name__ == '__main__':
     backend = TestBackend(gui)
     agents = list()
     for i in range(NUM_OF_AGENS):
-        agent = EvoAgent("agent" + str(i), sense_radius=6)
+        agent = EvoAgent("agent" + str(i), sense_radius=10)
         """
         selector = Selector(name="root_selector", memory=True)
 
@@ -60,14 +60,14 @@ if __name__ == '__main__':
         agents.append(agent)
 
         backend.register_agent(agents[-1])
-    print(type(agents[0]))
+    #print(type(agents[0]))
 
     food = FoodSource("jidlo", ObjectType.FOOD, 2)
     hub = Hub("hub", ObjectType.HUB, 2)
 
     backend.place_object(food, [2, 2])
     backend.place_object(hub, [2, 12])
-    print("dummy")
+    #print("dummy")
 
     backend.start()
 

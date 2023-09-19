@@ -1,8 +1,8 @@
-from algorithm.parameters import params
-from stats.stats import stats
+#from algorithm.parameters import params
+from src.stats.stats import stats
 
 
-def clean_stats():
+def clean_stats(agent=None):
     """
     Removes certain unnecessary stats from the stats.stats.stats dictionary
     to clean up the current run.
@@ -10,9 +10,19 @@ def clean_stats():
     :return: Nothing.
     """
 
-    if not params['CACHE']:
-        stats.pop('unique_inds')
-        stats.pop('unused_search')
+    if not agent.GE_params['CACHE']:
+        try:
+            stats.pop('unique_inds')
+        except KeyError:
+            pass
 
-    if not params['MUTATE_DUPLICATES']:
-        stats.pop('regens')
+        try:
+            stats.pop('unused_search')
+        except KeyError:
+            pass
+
+    if not agent.GE_params['MUTATE_DUPLICATES']:
+        try:
+            stats.pop('regens')
+        except KeyError:
+            pass

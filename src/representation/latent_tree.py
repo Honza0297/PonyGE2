@@ -29,7 +29,7 @@ derivation trees.
 
 import random
 
-from algorithm.parameters import params
+#from algorithm.parameters import params
 from representation.derivation import legal_productions
 
 

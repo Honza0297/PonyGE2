@@ -1,9 +1,9 @@
-from algorithm.parameters import params
+#from algorithm.parameters import params
 from representation.attributes import AttrCode, NontermAttrs
 
 class Tree:
 
-    def __init__(self, expr, parent):
+    def __init__(self, expr, parent, agent):
         """
         Initialise an instance of the tree class.
         
@@ -19,7 +19,8 @@ class Tree:
         self.children = []
         self.snippet = None
 
-        if params["ATTRIBUTE_GRAMMAR"]:
+        self.agent=agent
+        if self.agent.GE_params["ATTRIBUTE_GRAMMAR"]:
             self.attr_code = AttrCode(None, self)
             self.valid = True
             self.raw_code = None
@@ -60,14 +61,14 @@ class Tree:
         """
 
         # Copy current tree by initialising a new instance of the tree class.
-        tree_copy = Tree(self.root, self.parent)
+        tree_copy = Tree(self.root, self.parent, self.agent)
 
         # Set node parameters.
         tree_copy.codon, tree_copy.depth = self.codon, self.depth
 
         tree_copy.snippet = self.snippet
 
-        if params["ATTRIBUTE_GRAMMAR"]:
+        if self.agent.GE_params["ATTRIBUTE_GRAMMAR"]:
             tree_copy.attr_code = self.attr_code
 
         for child in self.children:
@@ -141,7 +142,7 @@ class Tree:
 
         # Find all non-terminal children of the current node.
         NT_kids = [kid for kid in self.children if kid.root in
-                   params['BNF_GRAMMAR'].non_terminals]
+                   self.agent.GE_params['BNF_GRAMMAR'].non_terminals]
 
         for child in NT_kids:
             if NT_kids:

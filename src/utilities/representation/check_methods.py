@@ -1,9 +1,9 @@
 import numpy as np
-from algorithm.parameters import params
+#from algorithm.parameters import params
 from representation import individual
 
 
-def check_ind(ind, check):
+def check_ind(ind, check, agent=None):
     """
     Check all shallow aspects of an individual to ensure everything is correct.
     
@@ -16,21 +16,21 @@ def check_ind(ind, check):
         return True
 
     if ind.invalid and \
-            ((check == "crossover" and params['NO_CROSSOVER_INVALIDS']) or
-             (check == "mutation" and params['NO_MUTATION_INVALIDS'])):
+            ((check == "crossover" and agent.GE_params['NO_CROSSOVER_INVALIDS']) or
+             (check == "mutation" and agent.GE_params['NO_MUTATION_INVALIDS'])):
         # We have an invalid.
         return True
 
-    elif params['MAX_TREE_DEPTH'] and ind.depth > params['MAX_TREE_DEPTH']:
+    elif agent.GE_params['MAX_TREE_DEPTH'] and ind.depth > agent.GE_params['MAX_TREE_DEPTH']:
         # Tree is too deep.
         return True
 
-    elif params['MAX_TREE_NODES'] and ind.nodes > params['MAX_TREE_NODES']:
+    elif agent.GE_params['MAX_TREE_NODES'] and ind.nodes > agent.GE_params['MAX_TREE_NODES']:
         # Tree has too many nodes.
         return True
 
-    elif params['MAX_GENOME_LENGTH'] and len(ind.genome) > \
-            params['MAX_GENOME_LENGTH']:
+    elif agent.GE_params['MAX_GENOME_LENGTH'] and len(ind.genome) > \
+            agent.GE_params['MAX_GENOME_LENGTH']:
         # Genome is too long.
         return True
 
@@ -51,7 +51,7 @@ def check_genome_mapping(ind):
     attributes_0 = vars(ind)
     attributes_1 = vars(new_ind)
 
-    if params['GENOME_OPERATIONS']:
+    if agent.GE_params['GENOME_OPERATIONS']:
         # If this parameter is set then the new individual will have no tree.
         attributes_0['tree'] = None
 
@@ -139,7 +139,7 @@ def check_genome_from_tree(ind_tree):
             raise Exception(s)
 
         # Check production choices for node root.
-        productions = params['BNF_GRAMMAR'].rules[ind_tree.root]['choices']
+        productions = agent.GE_params['BNF_GRAMMAR'].rules[ind_tree.root]['choices']
 
         # Select choice based on node codon.
         selection = ind_tree.codon % len(productions)
@@ -242,7 +242,7 @@ def get_nodes_and_depth(tree, nodes=0, max_depth=0):
 
     # Create list of all non-terminal children of current node.
     NT_kids = [kid for kid in tree.children if kid.root in
-               params['BNF_GRAMMAR'].non_terminals]
+               agent.GE_params['BNF_GRAMMAR'].non_terminals]
 
     if not NT_kids and get_output(tree):
         # Current node has only terminal children.
@@ -367,7 +367,7 @@ def generate_codon(NT, choice):
     :return: A codon that will give that production choice.
     """
 
-    productions = params['BNF_GRAMMAR'].rules[NT]
+    productions = agent.GE_params['BNF_GRAMMAR'].rules[NT]
 
     # Find the production choices from the given NT.
     choices = [choice['choice'] for choice in productions['choices']]

@@ -1,11 +1,11 @@
 from random import sample
 
-from algorithm.parameters import params
+#from algorithm.parameters import params
 from utilities.algorithm.NSGA2 import compute_pareto_metrics, \
     crowded_comparison_operator
 
 
-def selection(population):
+def selection(population, agent=None):
     """
     Perform selection on a population in order to select a population of
     individuals for variation.
@@ -14,10 +14,10 @@ def selection(population):
     :return: selected population
     """
 
-    return params['SELECTION'](population)
+    return agent.GE_params['SELECTION'](population, agent)
 
 
-def tournament(population):
+def tournament(population, agent=None):
     """
     Given an entire population, draw <tournament_size> competitors randomly and
     return the best. Only valid individuals can be selected for tournaments.
@@ -30,18 +30,15 @@ def tournament(population):
     winners = []
 
     # The flag "INVALID_SELECTION" allows for selection of invalid individuals.
-    if params['INVALID_SELECTION']:
+    if agent.GE_params['INVALID_SELECTION']:
         available = population
     else:
         available = [i for i in population if not i.invalid]
 
-    while len(winners) < params['GENERATION_SIZE']:
+    while len(winners) < agent.GE_params['GENERATION_SIZE']:
         # Randomly choose TOURNAMENT_SIZE competitors from the given
         # population. Allows for re-sampling of individuals.
-        print("###{} {}".format(len(available), params['TOURNAMENT_SIZE']))
-        if len(available) < params['TOURNAMENT_SIZE']:
-            print("Ahme")
-        competitors = sample(available, params['TOURNAMENT_SIZE'])
+        competitors = sample(available, agent.GE_params['TOURNAMENT_SIZE'])
         # Return the single best competitor.
         winners.append(max(competitors))
 
@@ -49,7 +46,7 @@ def tournament(population):
     return winners
 
 
-def truncation(population):
+def truncation(population, agent=None):
     """
     Given an entire population, return the best <proportion> of them.
 
@@ -61,13 +58,13 @@ def truncation(population):
     population.sort(reverse=True)
 
     # Find the cutoff point for truncation.
-    cutoff = int(len(population) * float(params['SELECTION_PROPORTION']))
+    cutoff = int(len(population) * float(agent.GE_params['SELECTION_PROPORTION']))
 
     # Return the best <proportion> of the given population.
     return population[:cutoff]
 
 
-def nsga2_selection(population):
+def nsga2_selection(population, agent=None):
     """Apply NSGA-II selection operator on the *population*. Usually, the
     size of *population* will be larger than *k* because any individual
     present in *population* will appear in the returned list at most once.
@@ -83,14 +80,14 @@ def nsga2_selection(population):
        optimization: NSGA-II", 2002.
     """
 
-    selection_size = params['GENERATION_SIZE']
-    tournament_size = params['TOURNAMENT_SIZE']
+    selection_size = agent.GE_params['GENERATION_SIZE']
+    tournament_size = agent.GE_params['TOURNAMENT_SIZE']
 
     # Initialise list of tournament winners.
     winners = []
 
     # The flag "INVALID_SELECTION" allows for selection of invalid individuals.
-    if params['INVALID_SELECTION']:
+    if agent.GE_params['INVALID_SELECTION']:
         available = population
     else:
         available = [i for i in population if not i.invalid]

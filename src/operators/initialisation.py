@@ -2,7 +2,7 @@ from math import floor
 from os import getcwd, listdir, path
 from random import randint, shuffle
 
-from algorithm.parameters import params
+#from algorithm.parameters import params
 from representation import individual
 from representation.derivation import generate_tree, pi_grow
 from representation.individual import Individual
@@ -12,15 +12,18 @@ from scripts import GE_LR_parser
 from utilities.representation.python_filter import python_filter
 
 
-def initialisation(size):
+def initialisation(size, agent=None):
     """
     Perform selection on a population in order to select a population of
     individuals for variation.
     
     :param size: The size of the required population.
+    :param agent: if GE is used in multiple instances (eg. in MAS/swarm application), use local parameters provided by the agent
     :return: A full population generated using the specified initialisation
     technique.
     """
+    if agent:
+        params = agent.GE_params
 
     # Decrease initialised population size by the number of seed individuals
     # (if any) to ensure that the total initial population size does not exceed
@@ -28,7 +31,7 @@ def initialisation(size):
     size -= len(params['SEED_INDIVIDUALS'])
 
     # Initialise empty population.
-    individuals = params['INITIALISATION'](size)
+    individuals = params['INITIALISATION'](size, agent=agent)
 
     # Add seed individuals (if any) to current population.
     individuals.extend(params['SEED_INDIVIDUALS'])
@@ -58,7 +61,7 @@ def uniform_genome(size):
     return [individual.Individual(sample_genome(), None) for _ in range(size)]
 
 
-def uniform_tree(size):
+def uniform_tree(size, agent=None):
     """
     Create a population of individuals by generating random derivation trees.
      
@@ -66,8 +69,8 @@ def uniform_tree(size):
     :return: A full population composed of randomly generated individuals.
     """
 
-    return [generate_ind_tree(params['MAX_TREE_DEPTH'],
-                              "random") for _ in range(size)]
+    return [generate_ind_tree(agent.GE_params['MAX_TREE_DEPTH'],
+                              "random", agent=agent) for _ in range(size)]
 
 
 def seed_individuals(size):
@@ -241,7 +244,7 @@ def rhh(size):
         return population
 
 
-def PI_grow(size):
+def PI_grow(size, agent=None):
     """
     Create a population of size using Position Independent Grow and return.
 
@@ -250,8 +253,8 @@ def PI_grow(size):
     """
 
     # Calculate the range of depths to ramp individuals from.
-    depths = range(params['BNF_GRAMMAR'].min_ramp + 1,
-                   params['MAX_INIT_TREE_DEPTH'] + 1)
+    depths = range(agent.GE_params['BNF_GRAMMAR'].min_ramp + 1,
+                   agent.GE_params['MAX_INIT_TREE_DEPTH'] + 1)
     population = []
 
     if size < 2:
@@ -309,7 +312,7 @@ def PI_grow(size):
         return population
 
 
-def generate_ind_tree(max_depth, method):
+def generate_ind_tree(max_depth, method, agent=None):
     """
     Generate an individual using a given subtree initialisation method.
 
@@ -319,32 +322,32 @@ def generate_ind_tree(max_depth, method):
     """
 
     # Initialise an instance of the tree class
-    ind_tree = Tree(str(params['BNF_GRAMMAR'].start_rule["symbol"]), None)
+    ind_tree = Tree(str(agent.GE_params['BNF_GRAMMAR'].start_rule["symbol"]), None, agent)
 
     # Generate a tree
     genome, output, nodes, _, depth = generate_tree(ind_tree, [], [], method,
-                                                    0, 0, 0, max_depth)
+                                                    0, 0, 0, max_depth, agent=agent)
 
     # Get remaining individual information
     phenotype, invalid, used_cod = "".join(output), False, len(genome)
 
-    if params['BNF_GRAMMAR'].python_mode:
+    if agent.GE_params['BNF_GRAMMAR'].python_mode:
         # Grammar contains python code
 
         phenotype = python_filter(phenotype)
 
     # Initialise individual
-    ind = individual.Individual(genome, ind_tree, map_ind=False)
+    ind = individual.Individual(genome, ind_tree, map_ind=False, agent=agent)
 
     # Set individual parameters
     ind.phenotype, ind.nodes = phenotype, nodes
-    if not params["ATTRIBUTE_GRAMMAR"]:
+    if not agent.GE_params["ATTRIBUTE_GRAMMAR"]:
         ind.depth, ind.used_codons, ind.invalid = depth, used_cod, invalid
     else:  # validity is set by checking attributes
         ind.depth, ind.used_codons = depth, used_cod
 
     # Generate random tail for genome.
-    ind.genome = genome + [randint(0, params['CODON_SIZE']) for
+    ind.genome = genome + [randint(0, agent.GE_params['CODON_SIZE']) for
                            _ in range(int(ind.used_codons / 2))]
 
     return ind

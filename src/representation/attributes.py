@@ -1,6 +1,6 @@
 import re
 
-from algorithm.parameters import params
+#from algorithm.parameters import params
 from re import DOTALL, MULTILINE, finditer, match
 
 productionpartsregex = '\ *([\r\n]+)\ *|([^\'"<\r\n]+)|\'(.*?)\'|"(.*?)"|(?P<subrule><[^>|\s]+>)|([<]+)'

@@ -18,7 +18,6 @@ def save_pareto_fitness_plot():
     :return: Nothing
     """
 
-    from algorithm.parameters import params
 
     # Initialise up figure instance.
     fig = plt.figure()

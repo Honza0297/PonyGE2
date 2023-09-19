@@ -2,10 +2,10 @@ import py_trees
 from py_trees.composites import Sequence, Selector
 import random
 from src.swarm.math import *
-import src.swarm.packets
+#import src.swarm.packets
 from src.swarm.models import TileModel
 from src.swarm.types import ObjectType
-from src.swarm.agent import Agent
+#from src.swarm.agent import Agent
 from py_trees.decorators import Inverter
 
 
@@ -23,7 +23,12 @@ class ObjectAtDist(py_trees.behaviour.Behaviour):
 
     def setup(self, agent, obj_type, dist=1) -> None:
         self.agent = agent
-        self.obj_type = obj_type
+
+        if type(obj_type) is str:
+            self.obj_type = ObjectType.str2enum(obj_type)
+        else:
+            self.obj_type = obj_type
+
         self.distance = dist
         self.blackboard = py_trees.blackboard.Client(name=self.agent.name, namespace=self.agent.name)
         self.blackboard.register_key(key="nearObjects", access=py_trees.common.Access.WRITE)  # todo better name for key
@@ -146,6 +151,7 @@ class SetNextStep(py_trees.behaviour.Behaviour):
         status = py_trees.common.Status.FAILURE
 
         # self.item is just object type -> wee need to check blackboard
+
         items = self.blackboard.get("nearObjects")
         if not items or items[0].type != self.item_type:
             self.logger.debug("FAILURE, objects in nearObjects are of type {} instead of {}".format(
@@ -321,12 +327,21 @@ class PickUp(py_trees.behaviour.Behaviour):
     def __init__(self, name):
         super(PickUp, self).__init__(name)
 
-    def setup(self, agent):
+    def setup(self, agent, item_type):
         self.running = False
         self.agent = agent
-        self.blackboard = py_trees.blackboard.Client(name=self.agent.name, namespace=self.agent.name)
-        self.blackboard.register_key(key="goalObject", access=py_trees.common.Access.READ)
 
+        item = None
+
+        num, cells = self.agent.neighbourhood.get(item_type)
+        if num > 0:
+            item = random.choice(cells)
+
+        self.blackboard = py_trees.blackboard.Client(name=self.agent.name, namespace=self.agent.name)
+        if item:
+            self.blackboard.register_key(key="goalObject", access=py_trees.common.Access.WRITE)
+
+            self.blackboard.set("goalObject", item)
     def initialise(self):
         pass
 
@@ -366,7 +381,7 @@ class Drop(py_trees.behaviour.Behaviour):
     def __init__(self, name):
         super(Drop, self).__init__(name)
 
-    def setup(self, agent: Agent, item_type):
+    def setup(self, agent, item_type):
         self.agent = agent
         self.item_type = item_type
         self.running = False
@@ -427,7 +442,7 @@ class CanDrop(py_trees.behaviour.Behaviour):
             self.agent.neighbourhood.neighbourhood[self.agent.sense_radius - 1][self.agent.sense_radius - 1]
             ]
         for tile in tiles_next_to:
-            if tile and (not tile.occupied or tile.obj.type == ObjectType.HUB):
+            if tile and (not tile.occupied or tile.obj_type == ObjectType.HUB):
                 self.logger.debug("SUCCESS, can drop somewhere")
                 status = py_trees.common.Status.SUCCESS
         if status == py_trees.common.Status.FAILURE:
@@ -631,3 +646,27 @@ class PPAMoveTowards(py_trees.behaviour.Behaviour):
 
     def terminate(self, new_status):
         pass
+
+
+class DummyNode(py_trees.behaviour.Behaviour):
+    """Dummy node.
+
+    BT node that always returns Success.
+    """
+
+    def __init__(self, name):
+        """Initialize."""
+        super(DummyNode, self).__init__(name)
+
+    def setup(self, agent, item=None):
+        """Setup."""
+        self.agent = agent
+        self.item = item
+
+    def initialise(self):
+        """Pass."""
+        pass
+
+    def update(self):
+        """Nothing much to do."""
+        return py_trees.common.Status.SUCCESS

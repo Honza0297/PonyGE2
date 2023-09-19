@@ -5,12 +5,12 @@ from random import seed
 from socket import gethostname
 from time import time
 
-from algorithm.parameters import params
+#from algorithm.parameters import params
 from utilities.stats import trackers
 from utilities.stats.file_io import generate_folders_and_files
 
 
-def initialise_run_params(create_files):
+def initialise_run_params(create_files, agent=None):
     """
     Initialises all lists and trackers. Generates save folders and initial
     parameter files if debugging is not active.
@@ -22,31 +22,31 @@ def initialise_run_params(create_files):
     trackers.time_list.append(time())
 
     # Set random seed
-    if params['RANDOM_SEED'] is None:
-        params['RANDOM_SEED'] = int(start.microsecond)
-    seed(params['RANDOM_SEED'])
+    if agent.GE_params['RANDOM_SEED'] is None:
+        agent.GE_params['RANDOM_SEED'] = int(start.microsecond)
+    seed(agent.GE_params['RANDOM_SEED'])
 
     # Generate a time stamp for use with folder and file names.
     hms = "%02d%02d%02d" % (start.hour, start.minute, start.second)
-    params['TIME_STAMP'] = "_".join([gethostname(),
+    agent.GE_params['TIME_STAMP'] = "_".join([gethostname(),
                                      str(start.year)[2:],
                                      str(start.month),
                                      str(start.day),
                                      hms,
                                      str(start.microsecond),
                                      str(getpid()),
-                                     str(params['RANDOM_SEED'])])
-    if not params['SILENT']:
+                                     str(agent.GE_params['RANDOM_SEED'])])
+    if not agent.GE_params['SILENT']:
         print("\nStart:\t", start, "\n")
 
     # Generate save folders and files
-    if params['DEBUG']:
-        print("Seed:\t", params['RANDOM_SEED'], "\n")
+    if agent.GE_params['DEBUG']:
+        print("Seed:\t", agent.GE_params['RANDOM_SEED'], "\n")
     elif create_files:
-        generate_folders_and_files()
+        generate_folders_and_files(agent=agent)
 
 
-def set_param_imports():
+def set_param_imports(agent=None):
     """
     This function makes the command line experience easier for users. When
     specifying operators listed in the lists below, users do not need to
@@ -85,7 +85,7 @@ def set_param_imports():
     for special_ops in ['algorithm', 'utilities.fitness',
                         'operators', 'fitness']:
 
-        if all([callable(params[op]) for op in ops[special_ops]]):
+        if all([callable(agent.GE_params[op]) for op in ops[special_ops]]):
             # params are already functions
             pass
 
@@ -93,14 +93,14 @@ def set_param_imports():
 
             for op in ops[special_ops]:
 
-                if special_ops == "fitness":  # NOTE: Tady asi budu importovat speciální fitness funkci
+                if special_ops == "fitness":
                     # Fitness functions represent a special case.
 
-                    get_fit_func_imports()
+                    get_fit_func_imports(agent=agent)
 
-                elif params[op] is not None:
+                elif agent.GE_params[op] is not None:
                     # Split import name based on "." to find nested modules.
-                    split_name = params[op].split(".")
+                    split_name = agent.GE_params[op].split(".")
 
                     if len(split_name) > 1:
                         # Check to see if a full path has been specified.
@@ -116,7 +116,7 @@ def set_param_imports():
                             module_name = ".".join(split_name[:-1])
 
                             # Import module and attribute and save.
-                            params[op] = return_attr_from_module(module_name,
+                            agent.GE_params[op] = return_attr_from_module(module_name,
                                                                  attr_name)
 
                         except Exception:
@@ -130,7 +130,7 @@ def set_param_imports():
 
                             try:
                                 # Import module and attribute and save.
-                                params[op] = return_attr_from_module(
+                                agent.GE_params[op] = return_attr_from_module(
                                     module_name,
                                     attr_name)
 
@@ -143,7 +143,7 @@ def set_param_imports():
                                     "                          %s\n" \
                                     "       Please ensure parameter is " \
                                     "specified correctly." % \
-                                    (op.lower(), attr_name, params[op],
+                                    (op.lower(), attr_name, agent.GE_params[op],
                                      ".".join([module_name, attr_name]))
                                 raise Exception(s)
 
@@ -156,7 +156,7 @@ def set_param_imports():
                         # inside algorithm search_loop_distributed and 
                         # step_distributed respectively
 
-                        if params['MULTIAGENT'] and \
+                        if agent.GE_params['MULTIAGENT'] and \
                                 (op == 'SEARCH_LOOP' or op == 'STEP'):
                             # Define the directory structure for the multi-agent search
                             # loop and step
@@ -175,11 +175,11 @@ def set_param_imports():
                             attr_name = split_name[-1]
 
                         # Import module and attribute and save.
-                        params[op] = return_attr_from_module(module_name,
+                        agent.GE_params[op] = return_attr_from_module(module_name,
                                                              attr_name)
 
 
-def get_fit_func_imports():
+def get_fit_func_imports(agent=None):
     """
     Special handling needs to be done for fitness function imports,
     as fitness functions can be specified a number of different ways. Notably,
@@ -195,21 +195,21 @@ def get_fit_func_imports():
 
     op = 'FITNESS_FUNCTION'
 
-    if "," in params[op]:
+    if "," in agent.GE_params[op]:
         # List of fitness functions given in parameters file.
 
         # Convert specified fitness functions into a list of strings.
-        params[op] = params[op].strip("[()]").split(",")
+        agent.GE_params[op] = agent.GE_params[op].strip("[()]").split(",")
 
-    if isinstance(params[op], list) and len(params[op]) == 1:
+    if isinstance(agent.GE_params[op], list) and len(agent.GE_params[op]) == 1:
         # Single fitness function given in a list format. Don't use
         # multi-objective optimisation.
-        params[op] = params[op][0]
+        agent.GE_params[op] = agent.GE_params[op][0]
 
-    if isinstance(params[op], list):
+    if isinstance(agent.GE_params[op], list):
         # List of multiple fitness functions given.
 
-        for i, name in enumerate(params[op]):
+        for i, name in enumerate(agent.GE_params[op]):
             # Split import name based on "." to find nested modules.
             split_name = name.strip().split(".")
 
@@ -218,32 +218,32 @@ def get_fit_func_imports():
             attr = split_name[-1]
 
             # Import this fitness function.
-            params[op][i] = return_attr_from_module(module_path, attr)
+            agent.GE_params[op][i] = return_attr_from_module(module_path, attr)
 
         # Import base multi-objective fitness function class.
         from fitness.base_ff_classes.moo_ff import moo_ff
 
         # Set main fitness function as base multi-objective fitness
         # function class.
-        params[op] = moo_ff(params[op])
+        agent.GE_params[op] = moo_ff(agent.GE_params[op])
 
     else:
         # A single fitness function has been specified.
 
         # Split import name based on "." to find nested modules.
-        split_name = params[op].strip().split(".")
+        split_name = agent.GE_params[op].strip().split(".")
 
         # Get attribute name.
         attr_name = split_name[-1]
 
         # Get module name.
-        module_name = ".".join(["fitness", params[op]])
+        module_name = ".".join(["fitness", agent.GE_params[op]])
 
         # Import module and attribute and save.
-        params[op] = return_attr_from_module(module_name, attr_name)
+        agent.GE_params[op] = return_attr_from_module(module_name, attr_name)
 
         # Initialise fitness function.
-        params[op] = params[op]()
+        agent.GE_params[op] = agent.GE_params[op]()
 
 
 def return_attr_from_module(module_name, attr_name):
@@ -277,7 +277,7 @@ def return_attr_from_module(module_name, attr_name):
         raise Exception(s)
 
 
-def pool_init(params_):
+def pool_init(params_, agent=None):
     """
     When initialising the pool the original params dict (params_) is passed in
     and used to update the newly created instance of params, as Windows does
@@ -290,4 +290,4 @@ def pool_init(params_):
     from platform import system
 
     if system() == 'Windows':
-        params.update(params_)
+        agent.GE_params.update(params_)

@@ -2,7 +2,7 @@ import re
 from copy import copy
 from itertools import zip_longest
 
-from algorithm.parameters import params
+#from algorithm.parameters import params
 from representation import individual, tree
 from utilities.representation.check_methods import generate_codon, get_output
 from utilities.stats import trackers

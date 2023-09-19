@@ -1,13 +1,13 @@
 from random import choice, randint, randrange
 
-from algorithm.parameters import params
+#from algorithm.parameters import params
 from representation.tree import Tree
 from utilities.representation.check_methods import get_nodes_and_depth, \
     ret_true
 
 
 def generate_tree(tree, genome, output, method, nodes, depth, max_depth,
-                  depth_limit):
+                  depth_limit, agent):
     """
     Recursive function to derive a tree using a given method.
     
@@ -30,7 +30,7 @@ def generate_tree(tree, genome, output, method, nodes, depth, max_depth,
     tree.depth = depth
 
     # Find the productions possible from the current root.
-    productions = params['BNF_GRAMMAR'].rules[tree.root]
+    productions = agent.GE_params['BNF_GRAMMAR'].rules[tree.root]
 
     if depth_limit:
         # Set remaining depth.
@@ -41,12 +41,12 @@ def generate_tree(tree, genome, output, method, nodes, depth, max_depth,
 
     # Find which productions can be used based on the derivation method.
     available = legal_productions(method, remaining_depth, tree.root,
-                                  productions['choices'])
+                                  productions['choices'], agent)
 
     # Randomly pick a production choice and make a codon with it.
     chosen_prod = choice(available)
-    codon = generate_codon(chosen_prod, productions)
-    if params["ATTRIBUTE_GRAMMAR"]:
+    codon = generate_codon(chosen_prod, productions, agent)
+    if agent.GE_params["ATTRIBUTE_GRAMMAR"]:
         tree.attr_code.set_attr_code(chosen_prod["attr_code"])
         tree.raw_code = chosen_prod["attr_code"][1:-1]
     # Set the codon for the current node and append codon to the genome.
@@ -60,22 +60,22 @@ def generate_tree(tree, genome, output, method, nodes, depth, max_depth,
         # Iterate over all symbols in the chosen production.
         if symbol["type"] == "T":
             # The symbol is a terminal. Append new node to children.
-            tree.children.append(Tree(symbol["symbol"], tree))
+            tree.children.append(Tree(symbol["symbol"], tree, agent=agent))
 
             # Append the terminal to the output list.
             output.append(symbol["symbol"])
 
         elif symbol["type"] == "NT":
             # The symbol is a non-terminal. Append new node to children.
-            tree.children.append(Tree(symbol["symbol"], tree))
+            tree.children.append(Tree(symbol["symbol"], tree, agent=agent))
 
             # recurse on the new node.
             genome, output, nodes, d, max_depth = \
                 generate_tree(tree.children[-1], genome, output, method,
-                              nodes, depth, max_depth, depth_limit)
+                              nodes, depth, max_depth, depth_limit, agent=agent)
 
     NT_kids = [kid for kid in tree.children if kid.root in
-               params['BNF_GRAMMAR'].non_terminals]
+               agent.GE_params['BNF_GRAMMAR'].non_terminals]
 
     if not NT_kids:
         # Then the branch terminates here
@@ -89,7 +89,7 @@ def generate_tree(tree, genome, output, method, nodes, depth, max_depth,
     return genome, output, nodes, depth, max_depth
 
 
-def generate_codon(chosen_prod, productions):
+def generate_codon(chosen_prod, productions, agent=None):
     """
     Generate a single codon
     
@@ -105,7 +105,7 @@ def generate_codon(chosen_prod, productions):
     # Choose a random offset with guarantee that (offset + production_index) < codon_size
     offset = randrange(
         start=0,
-        stop=params['BNF_GRAMMAR'].codon_size - productions['no_choices'] + 1,
+        stop=agent.GE_params['BNF_GRAMMAR'].codon_size - productions['no_choices'] + 1,
         step=productions['no_choices']
     )
 
@@ -113,7 +113,7 @@ def generate_codon(chosen_prod, productions):
     return codon
 
 
-def legal_productions(method, depth_limit, root, productions):
+def legal_productions(method, depth_limit, root, productions, agent=None):
     """
     Returns the available production choices for a node given a specific
     depth limit.
@@ -130,7 +130,7 @@ def legal_productions(method, depth_limit, root, productions):
     """
 
     # Get all information about root node
-    root_info = params['BNF_GRAMMAR'].non_terminals[root]
+    root_info = agent.GE_params['BNF_GRAMMAR'].non_terminals[root]
 
     if method == "random":
         # Randomly build a tree.
@@ -139,7 +139,7 @@ def legal_productions(method, depth_limit, root, productions):
             # There is no depth limit, any production choice can be used.
             available = productions
 
-        elif depth_limit > params['BNF_GRAMMAR'].max_arity + 1:
+        elif depth_limit > agent.GE_params['BNF_GRAMMAR'].max_arity + 1:
             # If the depth limit is greater than the maximum arity of the
             # grammar, then any production choice can be used.
             available = productions
@@ -172,7 +172,7 @@ def legal_productions(method, depth_limit, root, productions):
                 "Error: Depth limit not specified for `Full` tree derivation."
             raise Exception(s)
 
-        elif depth_limit > params['BNF_GRAMMAR'].max_arity + 1:
+        elif depth_limit > agent.GE_params['BNF_GRAMMAR'].max_arity + 1:
             # If the depth limit is greater than the maximum arity of the
             # grammar, then only recursive production choices can be used.
             available = root_info['recursive']
@@ -200,7 +200,7 @@ def legal_productions(method, depth_limit, root, productions):
     return available
 
 
-def pi_random_derivation(tree, max_depth):
+def pi_random_derivation(tree, max_depth, agent=None):
     """
     Randomly builds a tree from a given root node up to a maximum given
     depth. Uses position independent methods to derive non-terminal nodes.
@@ -212,7 +212,7 @@ def pi_random_derivation(tree, max_depth):
     """
 
     # Initialise derivation queue.
-    queue = [[tree, ret_true(params['BNF_GRAMMAR'].non_terminals[
+    queue = [[tree, ret_true(agent.GE_params['BNF_GRAMMAR'].non_terminals[
                                  tree.root]['recursive'])]]
 
     # Initialise empty genome. With PI operators we can't use a depth-first
@@ -235,7 +235,7 @@ def pi_random_derivation(tree, max_depth):
             node.depth = node.parent.depth + 1
 
         # Find the productions possible from the current root.
-        productions = params['BNF_GRAMMAR'].rules[node.root]
+        productions = agent.GE_params['BNF_GRAMMAR'].rules[node.root]
 
         # Set remaining depth.
         remaining_depth = max_depth - node.depth
@@ -270,7 +270,7 @@ def pi_random_derivation(tree, max_depth):
                 # The symbol is a non-terminal.
 
                 # Check whether child is recursive
-                recur_child = ret_true(params['BNF_GRAMMAR'].non_terminals
+                recur_child = ret_true(agent.GE_params['BNF_GRAMMAR'].non_terminals
                                        [child.root]['recursive'])
 
                 # Insert new child into the correct position in the queue.
@@ -279,13 +279,13 @@ def pi_random_derivation(tree, max_depth):
     # genome, output, invalid, depth, and nodes can all be generated by
     # recursing through the tree once.
     _, output, invalid, depth, \
-    nodes = tree.get_tree_info(params['BNF_GRAMMAR'].non_terminals.keys(),
+    nodes = tree.get_tree_info(agent.GE_params['BNF_GRAMMAR'].non_terminals.keys(),
                                [], [])
 
     return genome, output, nodes, depth
 
 
-def pi_grow(tree, max_depth):
+def pi_grow(tree, max_depth, agent=None):
     """
     Grows a tree until a single branch reaches a specified depth. Does this
     by only using recursive production choices until a single branch of the
@@ -298,7 +298,7 @@ def pi_grow(tree, max_depth):
     """
 
     # Initialise derivation queue.
-    queue = [[tree, ret_true(params['BNF_GRAMMAR'].non_terminals[tree.root]['recursive'])]]
+    queue = [[tree, ret_true(agent.GE_params['BNF_GRAMMAR'].non_terminals[tree.root]['recursive'])]]
 
     # Initialise empty genome. With PI operators we can't use a depth-first
     # traversal of the tree to build the genome, we need to build it as we
@@ -323,7 +323,7 @@ def pi_grow(tree, max_depth):
         _, overall_depth = get_nodes_and_depth(tree)
 
         # Find the productions possible from the current root.
-        productions = params['BNF_GRAMMAR'].rules[node.root]
+        productions = agent.GE_params['BNF_GRAMMAR'].rules[node.root]
 
         # Set remaining depth.
         remaining_depth = max_depth - node.depth
@@ -359,7 +359,7 @@ def pi_grow(tree, max_depth):
         node.children = []
 
         # copy attribute code if attribute grammar is used
-        if params["ATTRIBUTE_GRAMMAR"]:
+        if agent.GE_params["ATTRIBUTE_GRAMMAR"]:
             node.attr_code.set_attr_code(chosen_prod["attr_code"])
             node.raw_code = chosen_prod["attr_code"][1:-1]
 
@@ -376,7 +376,7 @@ def pi_grow(tree, max_depth):
                 # The symbol is a non-terminal.
 
                 # Check whether child is recursive
-                recur_child = ret_true(params['BNF_GRAMMAR'].non_terminals
+                recur_child = ret_true(agent.GE_params['BNF_GRAMMAR'].non_terminals
                                        [child.root]['recursive'])
 
                 # Insert new child into the correct position in the queue.
@@ -385,7 +385,7 @@ def pi_grow(tree, max_depth):
     # genome, output, invalid, depth, and nodes can all be generated by
     # recursing through the tree once.
     _, output, invalid, depth, \
-    nodes = tree.get_tree_info(params['BNF_GRAMMAR'].non_terminals.keys(),
+    nodes = tree.get_tree_info(agent.GE_params['BNF_GRAMMAR'].non_terminals.keys(),
                                [], [])
 
     return genome, output, nodes, depth

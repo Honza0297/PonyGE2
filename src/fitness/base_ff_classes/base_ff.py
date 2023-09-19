@@ -17,8 +17,8 @@ class base_ff:
     # Default fitness objective is to minimise fitness.
     maximise = False
 
-    def __init__(self):
-        pass
+    def __init__(self, agent=None):
+        self.agent=agent
 
     def __call__(self, ind, **kwargs):
         """
