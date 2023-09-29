@@ -1,0 +1,71 @@
+<root>
+is_able_to_move, S, False
+is_able_to_pick_food, S, False
+is_able_to_drop_food, S, False
+---
+
+<sequence>
+is_able_to_move, S, False
+is_able_to_pick_food, S, False
+is_able_to_drop_food, S, False
+---
+
+<selector>
+is_able_to_move, S, False
+is_able_to_pick_food, S, False
+is_able_to_drop_food, S, False
+---
+
+<ppa>
+is_able_to_move, S, False
+is_able_to_pick_food, S, False
+is_able_to_drop_food, S, False
+---
+
+<ppasequence>
+is_able_to_move, S, False
+is_able_to_pick_food, S, False
+is_able_to_drop_food, S, False
+---
+
+<postconditions>
+is_able_to_move, S, False
+is_able_to_pick_food, S, False
+is_able_to_drop_food, S, False
+---
+
+<postcondition>
+---
+
+<postconditiont>
+---
+
+<preconditions>
+---
+
+<precondition>
+---
+
+<preconditiont>
+---
+
+<SuccessNode>
+---
+
+<objects>
+item_type,S,""
+---
+
+<dobjects>
+item_type,S,""
+---
+
+<sobjects>
+item_type,S,""
+---
+
+<action>
+is_able_to_move, S, False
+is_able_to_pick_food, S, False
+is_able_to_drop_food, S, False
+---

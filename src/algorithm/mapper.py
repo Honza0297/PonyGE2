@@ -41,7 +41,7 @@ def mapper(genome, tree, agent=None):
         else:
             # Build the tree using algorithm.mapper.map_tree_from_genome().
             phenotype, genome, tree, nodes, invalid, depth, \
-            used_codons = map_tree_from_genome(genome)
+            used_codons = map_tree_from_genome(genome, agent=agent)
 
     else:
         # We have a tree.
@@ -175,7 +175,7 @@ def map_ind_from_genome(genome, agent=None):
     return output, genome, None, nodes, False, max_depth, used_input
 
 
-def map_tree_from_genome(genome):
+def map_tree_from_genome(genome, agent=None):
     """
     Maps a full tree from a given genome.
 
@@ -184,11 +184,11 @@ def map_tree_from_genome(genome):
     """
 
     # Initialise an instance of the tree class
-    tree = Tree(str(agent.GE_params['BNF_GRAMMAR'].start_rule["symbol"]), None)
+    tree = Tree(str(agent.GE_params['BNF_GRAMMAR'].start_rule["symbol"]), None, agent=agent)
 
     # Map tree from the given genome
     output, used_codons, nodes, depth, max_depth, invalid = \
-        genome_tree_map(tree, genome, [], 0, 0, 0, 0)
+        genome_tree_map(tree, genome, [], 0, 0, 0, 0, agent=agent)
 
     # Build phenotype.
     phenotype = "".join(output)
@@ -271,19 +271,19 @@ def genome_tree_map(tree, genome, output, index, depth, max_depth, nodes,
             if symbol["type"] == "T":
                 # Append the child to the parent node. Child is a terminal, do
                 # not recurse.
-                tree.children.append(Tree(symbol["symbol"], tree))
+                tree.children.append(Tree(symbol["symbol"], tree, agent=agent))
                 output.append(symbol["symbol"])
 
             elif symbol["type"] == "NT":
                 # Append the child to the parent node.
-                tree.children.append(Tree(symbol["symbol"], tree))
+                tree.children.append(Tree(symbol["symbol"], tree, agent=agent))
 
                 # Recurse by calling the function again to map the next
                 # non-terminal from the genome.
                 output, index, nodes, d, max_depth, invalid = \
                     genome_tree_map(tree.children[-1], genome, output,
                                     index, depth, max_depth, nodes,
-                                    invalid=invalid)
+                                    invalid=invalid, agent=agent)
 
     else:
         # Mapping incomplete, solution is invalid.

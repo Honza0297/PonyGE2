@@ -1,0 +1,127 @@
+#Simplified PPA grammar
+#- no debris
+#- task: grab food and move it to base (?)
+#- postconditions: 
+# Control flow
+
+<root> ::= <sequence> | <selector>
+    {
+        <root>.is_able_to_move = <sequence>.is_able_to_move
+        <root>.is_able_to_pick_food = <sequence>.is_able_to_pick_food
+        <root>.is_able_to_drop_food = <sequence>.is_able_to_drop_food
+        error() if not <root>.is_able_to_move else ok()
+
+    }
+    |{
+        <root>.is_able_to_move = <selector>.is_able_to_move
+        <root>.is_able_to_pick_food = <selector>.is_able_to_pick_food
+        <root>.is_able_to_drop_food = <selector>.is_able_to_drop_food
+        error() if not <root>.is_able_to_move or not <root>.is_able_to_pick_food or not <root>.is_able_to_drop_food else ok()
+    }
+<sequence> ::= [Sequence]<ppa>[/Sequence] | [Sequence]<root><root>[/Sequence] | [Sequence]<sequence><root>[/Sequence]
+    {
+        <sequence>.is_able_to_move = <ppa>.is_able_to_move
+        <sequence>.is_able_to_pick_food = <ppa>.is_able_to_pick_food
+        <sequence>.is_able_to_drop_food = <ppa>.is_able_to_drop_food
+    }
+    |{
+        <sequence>.is_able_to_move = <root_1>.is_able_to_move or <root_2>.is_able_to_move
+        <sequence>.is_able_to_pick_food = <root_1>.is_able_to_pick_food or <root_2>.is_able_to_pick_food
+        <sequence>.is_able_to_drop_food = <root_1>.is_able_to_drop_food or <root_2>.is_able_to_drop_food
+    }
+    |{
+        <sequence_1>.is_able_to_move = <sequence_2>.is_able_to_move or <root>.is_able_to_move
+        <sequence_1>.is_able_to_pick_food = <sequence_2>.is_able_to_pick_food or <root>.is_able_to_pick_food
+        <sequence_1>.is_able_to_drop_food = <sequence_2>.is_able_to_drop_food or <root>.is_able_to_drop_food
+    }
+<selector> ::= [Selector]<ppa>[/Selector] | [Selector]<root><root>[/Selector] | [Selector]<selector><root>[/Selector]
+    {
+        <selector>.is_able_to_move = <ppa>.is_able_to_move
+        <selector>.is_able_to_pick_food = <ppa>.is_able_to_pick_food
+        <selector>.is_able_to_drop_food = <ppa>.is_able_to_drop_food
+    }
+    |{
+        <selector>.is_able_to_move = <root_1>.is_able_to_move or <root_2>.is_able_to_move
+        <selector>.is_able_to_pick_food = <root_1>.is_able_to_pick_food or <root_2>.is_able_to_pick_food
+        <selector>.is_able_to_drop_food = <root_1>.is_able_to_drop_food or <root_2>.is_able_to_drop_food
+    }
+    |{
+        <selector_1>.is_able_to_move = <selector_2>.is_able_to_move or <root>.is_able_to_move
+        <selector_1>.is_able_to_pick_food = <selector_2>.is_able_to_pick_food or <root>.is_able_to_pick_food
+        <selector_1>.is_able_to_drop_food = <selector_2>.is_able_to_drop_food or <root>.is_able_to_drop_food
+    }
+<ppa> ::= [Selector]<postconditions><ppasequence>[/Selector]
+    {
+        <ppa>.is_able_to_move = <postconditions>.is_able_to_move or <ppasequence>.is_able_to_move
+        <ppa>.is_able_to_pick_food = <postconditions>.is_able_to_pick_food or <ppasequence>.is_able_to_pick_food
+        <ppa>.is_able_to_drop_food = <postconditions>.is_able_to_drop_food or <ppasequence>.is_able_to_drop_food
+    }
+
+# PPA control flow
+
+<postconditions> ::= <SuccessNode> | <ppa> |[Sequence]<postcondition>[/Sequence] # None | another PPA | some
+    {}
+    |{
+        <postconditions>.is_able_to_move = <ppa>.is_able_to_move
+        <postconditions>.is_able_to_pick_food = <ppa>.is_able_to_pick_food
+        <postconditions>.is_able_to_drop_food = <ppa>.is_able_to_drop_food
+    }
+    |{}
+
+<postcondition> ::= <postcondition>[PostCnd]<postconditiont>[/PostCnd] | [PostCnd]<postconditiont>[/PostCnd]
+    {}
+    |{}
+<postconditiont> ::= NeighbourObjects_<objects> | IsCarrying_<dobjects>
+    {}
+    |{}
+<ppasequence> ::= [Sequence] <preconditions> [Act]<action>[/Act] [/Sequence]
+{   
+    <ppasequence>.is_able_to_move = <action>.is_able_to_move
+    <ppasequence>.is_able_to_pick_food = <action>.is_able_to_pick_food
+    <ppasequence>.is_able_to_drop_food = <action>.is_able_to_drop_food
+}
+
+<preconditions> ::= [Sequence]<precondition>[/Sequence]
+    {}
+<precondition> ::= <precondition>[PreCnd]<preconditiont>[/PreCnd] | [PreCnd]<preconditiont>[/PreCnd]
+    {}
+    |{}
+<preconditiont> ::= CanCarry_<dobjects> | CanDrop_<dobjects> | NeighbourObjects_<objects> | NeighbourObjects_<objects>_invert | IsCarrying_<dobjects> | IsCarrying_<dobjects>_invert
+    {}
+    |{}
+    |{}
+    |{}
+    |{}
+    |{}
+<action> ::= GoTo_<objects> | PPARandomWalk | PPAPickUp_<dobjects> | PPADrop_<dobjects>
+    {
+        <action>.is_able_to_move = True
+    }
+    |{
+        <action>.is_able_to_move = True
+    }
+    |{
+        <action>.is_able_to_pick_food = True if <objects>.item_type == "food" else False
+    }
+    |{
+        <action>.is_able_to_drop_food = True if <objects>.item_type == "food" else False
+    }
+<objects> ::= <sobjects> | <dobjects>
+    {
+        <objects>.item_type = <sobjects>.item_type
+    }
+    |{
+        <objects>.item_type = <dobjects>.item_type
+    }
+
+<sobjects> ::= Hub
+     {
+        <sobjects>.item_type = "hub"
+     }
+<dobjects> ::= Food
+    {
+        <dobjects>.item_type = "food"
+    }
+
+<SuccessNode> ::= [PostCnd]DummyNode[/PostCnd]
+    {}

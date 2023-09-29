@@ -19,7 +19,7 @@
 
 <postcondition> ::= <postcondition>[PostCnd]<postconditiont>[/PostCnd] | [PostCnd]<postconditiont>[/PostCnd]
 
-<postconditiont> ::= NeighbourObjects_<objects>
+<postconditiont> ::= NeighbourObjects_<objects> | IsCarrying_<dobjects>
 
 <ppasequence> ::= [Sequence] <preconditions> [Act]<action>[/Act] [/Sequence]
 
@@ -27,9 +27,9 @@
 
 <precondition> ::= <precondition>[PreCnd]<preconditiont>[/PreCnd] | [PreCnd]<preconditiont>[/PreCnd]
 
-<preconditiont> ::= CanCarry_<objects> | CanDrop_<objects> | NeighbourObjects_<objects> | NeighbourObjects_<objects>_invert | IsCarrying_<objects> | IsCarrying_<objects>_invert
+<preconditiont> ::= CanCarry_<dobjects> | CanDrop_<dobjects> | NeighbourObjects_<objects> | NeighbourObjects_<objects>_invert | IsCarrying_<dobjects> | IsCarrying_<dobjects>_invert
 
-<action> ::= GoTo_<objects> | CompositeRandomWalk | PickUp_<objects> | Drop_<objects>
+<action> ::= GoTo_<objects> | PPARandomWalk | PPAPickUp_<objects> | PPADrop_<objects>
 
 <objects> ::= <sobjects> | <dobjects>
 

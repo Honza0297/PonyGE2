@@ -7,15 +7,16 @@ productionpartsregex = '\ *([\r\n]+)\ *|([^\'"<\r\n]+)|\'(.*?)\'|"(.*?)"|(?P<sub
 
 
 class AttrCode():
-    def __init__(self, code, tree):
+    def __init__(self, code, tree, agent=None):
         # get a reference to the tree/node this instance is part of
+        self.agent = agent
         if tree is not None:
             from representation.tree import Tree
             self.tree = tree
         # lhs is the NT on the LHS of corresponding rule, AKA the root of the tree
         self.lhs = NontermAttrs(self.tree.root,
-                                None if self.tree.root not in params["BNF_GRAMMAR"].non_terminals.keys() else
-                                params["BNF_GRAMMAR"].non_terminals[self.tree.root]["attributes"])
+                                None if self.tree.root not in self.agent.GE_params["BNF_GRAMMAR"].non_terminals.keys() else
+                                self.agent.GE_params["BNF_GRAMMAR"].non_terminals[self.tree.root]["attributes"])
 
         self.aliases = {}
 
@@ -157,7 +158,7 @@ class AttrCode():
                     for child in self.tree.children:
                         # Check for leafs and perform recursive code run only if it will
                         # be applied to non-leaf
-                        if child.root in params["BNF_GRAMMAR"].non_terminals.keys():
+                        if child.root in self.agent.GE_params["BNF_GRAMMAR"].non_terminals.keys():
                             child.attr_code.run()
                     try:
                         exec(" ".join(code_line))

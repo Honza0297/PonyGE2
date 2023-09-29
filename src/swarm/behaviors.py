@@ -141,7 +141,7 @@ class SetNextStep(py_trees.behaviour.Behaviour):
         self.item_type = item_type
         self.nearest_object = None
         self.blackboard = py_trees.blackboard.Client(name=self.agent.name, namespace=self.agent.name)
-        self.blackboard.register_key(key="nearObjects", access=py_trees.common.Access.READ)  # todo better name for key
+        self.blackboard.register_key(key="nearObjects", access=py_trees.common.Access.WRITE)  # todo better name for key
         self.blackboard.register_key(key="goalObject", access=py_trees.common.Access.WRITE)
 
     def initialise(self):
@@ -151,8 +151,12 @@ class SetNextStep(py_trees.behaviour.Behaviour):
         status = py_trees.common.Status.FAILURE
 
         # self.item is just object type -> wee need to check blackboard
+        if not self.blackboard.exists("nearObjects"):
+            num, tiles_with_object = self.agent.neighbourhood.get(self.item_type)
+            self.blackboard.set("nearObjects", tiles_with_object, overwrite=True)
 
         items = self.blackboard.get("nearObjects")
+
         if not items or items[0].type != self.item_type:
             self.logger.debug("FAILURE, objects in nearObjects are of type {} instead of {}".format(
                 "NoObject" if not items else items[0].type.value, self.item_type.value))
@@ -338,9 +342,9 @@ class PickUp(py_trees.behaviour.Behaviour):
             item = random.choice(cells)
 
         self.blackboard = py_trees.blackboard.Client(name=self.agent.name, namespace=self.agent.name)
-        if item:
-            self.blackboard.register_key(key="goalObject", access=py_trees.common.Access.WRITE)
+        self.blackboard.register_key(key="goalObject", access=py_trees.common.Access.WRITE)
 
+        if item:
             self.blackboard.set("goalObject", item)
     def initialise(self):
         pass
@@ -442,7 +446,7 @@ class CanDrop(py_trees.behaviour.Behaviour):
             self.agent.neighbourhood.neighbourhood[self.agent.sense_radius - 1][self.agent.sense_radius - 1]
             ]
         for tile in tiles_next_to:
-            if tile and (not tile.occupied or tile.obj_type == ObjectType.HUB):
+            if tile and (not tile.occupied or tile.object.type == ObjectType.HUB):
                 self.logger.debug("SUCCESS, can drop somewhere")
                 status = py_trees.common.Status.SUCCESS
         if status == py_trees.common.Status.FAILURE:
@@ -456,9 +460,9 @@ class CanDrop(py_trees.behaviour.Behaviour):
 ###
 # Composite non PPA behaviors
 ###
-class CompositeRandomWalk(py_trees.behaviour.Behaviour):
+class PPARandomWalk(py_trees.behaviour.Behaviour):
     def __init__(self, name):
-        super(CompositeRandomWalk, self).__init__(name)
+        super(PPARandomWalk, self).__init__(name)
 
     def setup(self, agent):
         rw = RandomWalk(name="CRW_random_walk")
@@ -557,9 +561,9 @@ class PPADrop(py_trees.behaviour.Behaviour):
         pass
 
 
-class PPAPickuUp(py_trees.behaviour.Behaviour):
+class PPAPickUp(py_trees.behaviour.Behaviour):
     def __init__(self, name):
-        super(PPAPickuUp, self).__init__(name)
+        super(PPAPickUp, self).__init__(name)
 
     def setup(self, agent, item_type):
         self.agent = agent
@@ -579,7 +583,7 @@ class PPAPickuUp(py_trees.behaviour.Behaviour):
         object_carryable.setup(self.agent, self.item_type)
 
         actually_pickup = PickUp(name="PU_pickup")
-        actually_pickup.setup(self.agent)
+        actually_pickup.setup(self.agent, item_type)
 
         sequence.add_children([object_next_to, object_carryable, actually_pickup])
         selector.add_children([already_carrying, sequence])

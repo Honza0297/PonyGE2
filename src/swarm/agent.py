@@ -3,7 +3,7 @@ import random
 import sys
 import time
 
-import py_trees.trees
+import py_trees
 from PyQt5 import QtCore
 
 from src.swarm import types
@@ -19,7 +19,7 @@ from src.operators.mutation import mutation
 from src.operators.replacement import replacement
 from src.swarm.bt import BTConstruct
 from src.swarm.default_params import default_params
-
+from src.representation.individual import Individual
 class Neighbourhood:
     def __init__(self, neighbourhood=None):
         if neighbourhood is None:
@@ -83,6 +83,8 @@ class Agent:
         self.dropping_item = None  # item that should be dropped
         self.backend = None
         self.max_speed = max_speed
+        self.steps = 0
+        self.steps_without_evolution = 0
 
         # agent.home_base = None  # why not, I say :)
     def setup(self):
@@ -158,7 +160,7 @@ class EvoAgent(Agent):
     """"
     Agent performing GE locally.
     """
-    def __init__(self, name, sense_radius=1, max_speed=1, color=QtCore.Qt.black, exchange_prob=1, genome_storage_threshold=2):
+    def __init__(self, name, sense_radius=1, max_speed=1, color=QtCore.Qt.black, exchange_prob=1, genome_storage_threshold=2, init_genome=None, params_file="parameters.txt"):
         super().__init__(name, sense_radius, max_speed, color)
         self.genotype_storage_threshold = genome_storage_threshold
         self.individual = None # type Individual
@@ -167,15 +169,17 @@ class EvoAgent(Agent):
         self.num_of_truly_exchanged_individuals = 0
 
         self.GE_params = dict(default_params)
-
+        self.param_file = params_file
+        self.init_genome = init_genome
         self.exchange_prob = exchange_prob
+        self.visited_locations = set()
 
 
     def setup(self):
         self.init_GE()
 
     def init_GE(self):
-        src.algorithm.parameters.load_params("parameters.txt", agent=self)
+        src.algorithm.parameters.load_params(self.param_file, agent=self)
 
         src.algorithm.parameters.set_params(None, create_files=True, agent=self)
 
@@ -187,8 +191,12 @@ class EvoAgent(Agent):
                 pass
             self.GE_params[key] = val
         #self.GE_params['FITNESS_FUNCTION'] = self.GE_params['FITNESS_FUNCTION']()
-        individuals = initialisation(size=1, agent=self) # size of the population = 1
+        if self.init_genome:
+            individuals = [Individual(genome=self.init_genome, ind_tree=None, agent=self)]
+        else:
+            individuals = initialisation(size=10, agent=self) # size of the population = 10
         individuals = evaluate_fitness(individuals, agent=self)
+        individuals.sort(reverse=True)
         # Assign the genome to the agent
         self.individuals = individuals
         self.individual = self.individuals[0] # first of the randomly generated solutions
@@ -201,6 +209,10 @@ class EvoAgent(Agent):
     def step(self):
         # todo exploration fitness and overall fitness - from junkOrExamples/agent.py.overall_fitness()
         # sense
+        self.visited_locations.add(tuple(self.position))
+        self.steps += 1
+        self.steps_without_evolution += 1
+
         resp = self.backend.sense_object_neighbourhood(self)
         self.neighbourhood.set_neighbourhood(resp.neighbourhood)
         agents_present, neighbouring_agent_cells = self.neighbourhood.get(types.ObjectType.AGENT)
@@ -215,14 +227,17 @@ class EvoAgent(Agent):
         # act
         self.bt_wrapper.behaviour_tree.tick()
 
+        self.compute_fitness()
 
         #update
+        # noinspection PyTypeChecker
         if self.num_of_truly_exchanged_individuals >= self.genotype_storage_threshold:
+            self.steps_without_evolution = 0
             #logging.fatal("EVOLUTION OF {}".format(self.name))
-            self.individuals = [self.exchanged_individuals[k] for k in self.exchanged_individuals.keys() if self.exchanged_individuals[k] is not None]
+            individuals = [self.exchanged_individuals[k] for k in self.exchanged_individuals.keys() if self.exchanged_individuals[k] is not None]
             # todo make genetic step over self.individuals
             # NOTE: copied and slightly changed code from ponyge/step.py/step()
-            parents = selection(self.individuals, self)
+            parents = selection(individuals, self)
 
             # Crossover parents and add to the new population.
             cross_pop = crossover(parents, self)
@@ -234,6 +249,7 @@ class EvoAgent(Agent):
             # Evaluate  the fitness of the new population.
             new_pop = evaluate_fitness(new_pop, self)
 
+
             # Replace the old population with the new population.
             self.individuals = replacement(new_pop, self.individuals, self)
 
@@ -243,7 +259,26 @@ class EvoAgent(Agent):
             self.individual.fitness = 0
             self.exchanged_individuals = dict()
             self.exchanged_individuals[self.name] = self.individual
+            self.num_of_truly_exchanged_individuals = 1
 
+            self.bt_wrapper.xmlstring = self.individual.phenotype
+            self.bt_wrapper.bt_from_xml()
+
+
+        elif self.steps_without_evolution > self.GE_params["MAX_STEPS_WITHOUT_EVOLUTION"]:
+            self.steps_without_evolution = 0
+
+            individuals = initialisation(size=10, agent=self)  # size of the population = 10
+            individuals = evaluate_fitness(individuals, agent=self)
+            individuals.sort(reverse=True)
+            # Assign the genome to the agent
+            self.individuals = individuals
+            self.individual = self.individuals[0]  # first of the randomly generated solutions
+            self.exchanged_individuals[self.name] = self.individual
+            self.num_of_truly_exchanged_individuals += 1
+
+            self.bt_wrapper.xmlstring = self.individual.phenotype
+            self.bt_wrapper.bt_from_xml()
 
     def ask_for_genome(self):
         if random.random() < self.exchange_prob:
@@ -251,3 +286,26 @@ class EvoAgent(Agent):
         else:
             return None
 
+    def compute_fitness(self):
+        exploration_fitness = self.compute_exploration_fitness()
+        BT_feedback_fitness = self.compute_BT_feedback_fitness()
+        self.individual.fitness = self.GE_params["BETA"]*self.individual.fitness + exploration_fitness + BT_feedback_fitness
+
+
+    def compute_exploration_fitness(self):
+        return max(len(self.visited_locations), 0)
+
+    def compute_BT_feedback_fitness(self):
+        all_nodes = list(self.bt_wrapper.behaviour_tree.root.iterate())
+        selectors = list(filter(
+            lambda x: isinstance(x, py_trees.composites.Selector), all_nodes)
+        )
+
+        postcond = list(filter(
+            lambda x: x.name.split('_')[-1] == 'postcond', all_nodes)
+        )
+
+        selectors_reward = sum([1 for sel in selectors if sel.status == py_trees.common.Status.SUCCESS])
+        postcond_reward = sum([1 for pcond in postcond if pcond.status == py_trees.common.Status.SUCCESS])
+
+        return selectors_reward+postcond_reward

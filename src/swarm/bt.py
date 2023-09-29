@@ -26,14 +26,14 @@ from swarms.behaviors.sbehaviors import (       # noqa: F401
 import src.swarm.types as types
 from src.swarm.behaviors import ( # noqa 401
     ObjectAtDist as NeighbourObjects,
-    CompositeRandomWalk,
+    PPARandomWalk,
     DummyNode,
     IsCarrying,
     CanDrop,
     CanCarry,
     GoTo,
-    Drop,
-    PickUp
+    PPADrop,
+    PPAPickUp
 )
 
 from py_trees.decorators import SuccessIsRunning, Inverter

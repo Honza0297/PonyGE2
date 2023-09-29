@@ -6,8 +6,8 @@ from re import finditer, match
 import copy
 
 class CodeTree(object):
-    def __init__(self, tree, parent=None, lhs=None):
-
+    def __init__(self, tree, parent=None, lhs=None, agent=None):
+        self.agent = agent
         self.valid = True
         self.tree = tree
         self.lhs = lhs
@@ -26,10 +26,10 @@ class CodeTree(object):
     def build(self):
         if not self.lhs:
             self.lhs = NonTerminal(self.tree.root, self.symbol_table[self.tree.root])
-        self.rhs = [NonTerminal(node.root, self.symbol_table[node.root]) if node.root in self.symbol_table.keys() else Terminal(node.root) for node in self.tree.children]
+        self.rhs = [NonTerminal(node.root, self.symbol_table[node.root], agent=self.agent) if node.root in self.symbol_table.keys() else Terminal(node.root, agent=self.agent) for node in self.tree.children]
         self.set_aliases()
         for tree_child, rhs_child in zip(self.tree.children, self.rhs):
-            self.children.append(CodeTree(tree_child, self, rhs_child))
+            self.children.append(CodeTree(tree_child, self, rhs_child, agent=self.agent))
         self.parse_code(self.tree.raw_code)
         for child in self.children:
             child.build()
@@ -102,9 +102,9 @@ class CodeTree(object):
             self.aliases[aliases[i]] = nonterminals[i]
 
     def make_symbol_table(self):
-        tmp = params["BNF_GRAMMAR"].non_terminals
+        tmp = self.agent.GE_params["BNF_GRAMMAR"].non_terminals
         nts = dict()
-        filename = "../grammars/"+params["GRAMMAR_FILE"] + ".symbols"
+        filename = "../grammars/"+self.agent.GE_params["GRAMMAR_FILE"] + ".symbols"
         with open(filename, "r") as f:
             blocks = f.read().split("---")
             for block in blocks:
@@ -119,25 +119,26 @@ class CodeTree(object):
                         continue
 
                     name, attribute_type, default_value = line.split(",")
-                    types = [int, list, float]
+                    default_value = eval(default_value)
+                    """types = [int, list, float]
                     for t in types:
                         try:
                             default_value = t(default_value)
                             break
                         except ValueError:
-                            pass
+                            pass"""
                     self.symbol_table[block[0]][name] = {"type": attribute_type.strip(), "value": default_value.strip() if type(default_value) == str else default_value }
         #print(self.symbol_table)
 
     def run(self):
-        ntas_regex = "self\.aliases\[\"\<[a-zA-Z1-9_]+\>\"\]\.attributes\[\"[a-z_1-9]+\"\]\[\"value\"\]"
+        ntas_regex = 'self\.aliases\[\"\<[a-zA-Z1-9_]+\>\"\]\.attributes\[\"[a-z_1-9]+\"\]\[\"value\"\]'
         run_children = False
         children_ran = False
         for code_line in self.code:
             # dummy = "".join(code_line)
             nt, var = None, None
 
-            # First part in the code line is a non-terminal -> this line is and assignment
+            # First part in the code line is a non-terminal -> this line is an assignment
             if match(ntas_regex, code_line[0]):
                 nt, var = self._get_nt_and_var_from_code_line_part(code_line[0])
             else:
@@ -152,6 +153,7 @@ class CodeTree(object):
                 except Exception as e:
                     print(" ".join(code_line))
                     print(e)
+                    print("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAa")
             elif attribute_type == "S":
                 operators = ["+=", "-=", "/=", "*=", "<", ">", ">=", "<="]
                 # check whether it is a literal assignment - in that case, treat it like "I" type
@@ -162,7 +164,9 @@ class CodeTree(object):
                         run_children = True
                     except Exception as e:
                         print(" ".join(code_line))
-                        print(e)
+                        print("\n\n"+str(repr(e))+"\n\n")
+                        print("##########################################################################x")
+
                 else:
                     if not children_ran:
                         children_ran = True
@@ -176,6 +180,7 @@ class CodeTree(object):
                     except Exception as e:
                         print(" ".join(code_line))
                         print(e)
+                        print("SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSsss")
 
         if run_children and not children_ran:
             for child in self.children:
@@ -214,18 +219,25 @@ class CodeTree(object):
                 var = regex_match.group("var_id")
                 return nt, var
 
+    def deep_copy(self):
+        new_tree = self.tree.__copy__()
+        new_code_tree = CodeTree(tree=new_tree, parent=self.parent, lhs=self.lhs, agent=self.agent)
+
+        return new_code_tree
 
 class Terminal(object):
-    def __init__(self, name=""):
+    def __init__(self, name="", agent=None):
+        self.agent = agent
         self.name = name
 
 
 class NonTerminal(object):
-    def __init__(self, name="", attributes=None):
+    def __init__(self, name="", attributes=None, agent=None):
+        self.agent = agent
         self.name = name
         self.attributes = {}
-        if not attributes and name in params["BNF_GRAMMAR"].non_terminals.keys():
-            for attr in params["BNF_GRAMMAR"].non_terminals[name]["attributes"].keys():
+        if not attributes and name in self.agent.GE_params["BNF_GRAMMAR"].non_terminals.keys():
+            for attr in self.agent.GE_params["BNF_GRAMMAR"].non_terminals[name]["attributes"].keys():
                 self.attributes[attr] = {"type": None, "value": None}
         else:
             for attribute in attributes:  # need to make a deep copy
@@ -331,7 +343,7 @@ class Individual(object):
                 str(self.phenotype) + "; " + str(self.fitness))
 
     def make_code_tree(self):
-        self.code_tree = CodeTree(tree=self.tree, parent=None, lhs={})
+        self.code_tree = CodeTree(tree=self.tree, parent=None, lhs={}, agent=self.agent)
         self.code_tree.build()
 
     def check_attribute_validity(self):
@@ -367,7 +379,7 @@ class Individual(object):
         new_ind.runtime_error = self.runtime_error
 
         if self.agent.GE_params["ATTRIBUTE_GRAMMAR"]:
-            new_ind.code_tree = copy.deepcopy(self.code_tree)
+            new_ind.code_tree = self.code_tree.deep_copy() #copy.deepcopy(self.code_tree)
 
         return new_ind
 

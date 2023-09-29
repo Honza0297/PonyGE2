@@ -21,7 +21,7 @@ class Tree:
 
         self.agent=agent
         if self.agent.GE_params["ATTRIBUTE_GRAMMAR"]:
-            self.attr_code = AttrCode(None, self)
+            self.attr_code = AttrCode(None, self, agent=agent)
             self.valid = True
             self.raw_code = None
 

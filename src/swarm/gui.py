@@ -111,6 +111,8 @@ class SimulationWindow(QMainWindow):
 
         #self.draw_hole =self.signal_add_hole.emit
         self.show()
+    def register_backend(self, backend):
+        self.backend = backend
 
     def _update(self, board_model):
         for r in range(self.dimension):
@@ -134,6 +136,8 @@ class SimulationWindow(QMainWindow):
         """step link between backend and frontend"""
         def step():
             self.signal_step.emit()
+            self.backend.stop = False
+            self.backend.step = True
             #runtime.step()
 
         step_butt.clicked.connect(step)
@@ -144,6 +148,8 @@ class SimulationWindow(QMainWindow):
             stop_butt.setEnabled(True)
             run_butt.setEnabled(False)
             step_butt.setEnabled(False)
+            self.backend.stop = False
+            self.backend.step = False
             self.signal_run.emit()
 
 
@@ -154,15 +160,14 @@ class SimulationWindow(QMainWindow):
         run_butt.clicked.connect(run)
         run_butt.setMaximumWidth(200)
 
-        period = QLineEdit("1000")
-        period.setMaximumWidth(200)
-
         stop_butt = QPushButton("Stop")
 
         def stop():
             stop_butt.setEnabled(False)
             run_butt.setEnabled(True)
             step_butt.setEnabled(True)
+            self.backend.stop = True
+            self.backend.step = False
             self.signal_stop.emit()
 
         stop_butt.clicked.connect(stop)
@@ -170,23 +175,13 @@ class SimulationWindow(QMainWindow):
         stop_butt.setMaximumWidth(200)
 
         stepping_layout.addWidget(step_butt, 0, 0)
-        stepping_layout.addWidget(period, 1, 1)
         stepping_layout.addWidget(run_butt, 1, 0)
         stepping_layout.addWidget(stop_butt, 2, 0)
 
-        end_butt = QPushButton("Save simulation data")
 
-        def end(): # TODO vyresit tlacitko save data
-            pass
-            #runtime.dl.print()
-            #runtime.dl.save_to_file("test")
-
-        end_butt.clicked.connect(end)
-        end_butt.setMaximumWidth(200)
 
         cpl = QVBoxLayout()
         cpl.addLayout(stepping_layout)
-        cpl.addWidget(end_butt)
         control_panel.setLayout(cpl)
         return control_panel
 

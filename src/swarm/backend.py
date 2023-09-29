@@ -19,6 +19,10 @@ class Backend(threading.Thread):
         self.agents = list()
         self.random = random
 
+        self.step = False
+        self.stop = True
+
+
     def register_agent(self, agent):
         if agent not in self.agents:
             self.agents.append(agent)
@@ -35,18 +39,43 @@ class Backend(threading.Thread):
     def run(self):
         pass
 
-    def place_object(self, obj: EnvironmentObject, position):
+    def place_object(self, obj: EnvironmentObject, position=None, rand=False):
+        pos_ok = False
+        if rand:
+            while not pos_ok:
+                position = [random.randint(0, self.board_model.dimension), random.randint(0, self.board_model.dimension)]
+                pos_ok = self.check_occupancy(position, obj.radius)
+        else:
+            pos_ok = self.check_occupancy(position, obj.radius)
+
+        if not pos_ok:
+            raise ValueError("Object {} of radius {} cannot be placed at {} due to occupancy.".format(obj.type.value, obj.radius, position))
         for r in range(position[0]-obj.radius, position[0]+obj.radius+1):
             for c in range(position[1] - obj.radius, position[1] + obj.radius + 1):
+                if r < 0 or c < 0 or r >= self.board_model.dimension or c >= self.board_model.dimension:
+                    continue
                 tile = self.board_model.tiles[r][c]
                 if compute_distance(tile.position, position) <= obj.radius:
                     tile.place_object(obj)
         obj.set_place(position, self.board_model)
 
+    def check_occupancy(self, position, radius):
+        pos_min = [position[0]-radius, position[1]-radius]
+        pos_max = [position[0]+radius, position[1]+radius]
+        for r in range(pos_min[0], pos_max[0]):
+            for c in range(pos_min[1], pos_max[1]):
+                if r < 0 or c < 0 or r >= self.board_model.dimension or c >= self.board_model.dimension:
+                    continue
+                tile = self.board_model.tiles[r][c]
+                if compute_distance(position, tile.position) <= radius and tile.occupied:
+                    return False
+        return True
 
 class TestBackend(Backend):
-    def __init__(self, gui):
+    def __init__(self, gui, deterministic=False):
         super(TestBackend, self).__init__(gui)
+        self.deterministic = deterministic
+
     def setup(self):
         self.place_agents()
         self.update_gui()
@@ -55,13 +84,20 @@ class TestBackend(Backend):
         cnt = 0
         self.setup()
         while True:
-            logging.debug("###########\nIteration number {}".format(cnt))
-            cnt += 1
-            random.shuffle(self.agents)  # change order every round to simulate non deterministic order of action for every agent
-            #self.gui.update(self.board_model)
-            for agent in self.agents:
-                agent.step()
-                agent.bt_wrapper.visualize()
+            if not self.stop:
+                if self.step:
+                    self.stop = True
+                logging.debug("###########\nIteration number {}".format(cnt))
+                cnt += 1
+                if not self.deterministic:
+                    random.shuffle(self.agents)  # change order every round to simulate non deterministic order of action for every agent
+                for agent in self.agents:
+                    #print("BT of {}".format(agent.name))
+                    agent.bt_wrapper.visualize()
+                    #print("Genome of {}: {}".format(agent.name, agent.individual.genome))
+                    if agent.name == "agent0" :
+                        print("meow") # just a place to control and observe one agent
+                    agent.step()
             time.sleep(0.2)
 
     def pick_up_req(self, agent, pos):
@@ -69,6 +105,9 @@ class TestBackend(Backend):
         resp = PickUpResp(agent.name, None)
 
         if tile and tile.object:
+            if tile.type == ObjectType.HUB:
+                raise TypeError("Agent at {} wants to grab hub at {}".format(agent.position, tile.position))
+
             resp = PickUpResp(agent.name, tile.object)
             tile.remove_object(tile.object)
         return resp

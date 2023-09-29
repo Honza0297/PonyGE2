@@ -104,7 +104,7 @@ default_params = {
     # Set replacement operator.
     'REPLACEMENT': "operators.replacement.generational",
     # Set elite size.
-    'ELITE_SIZE': None,
+    'ELITE_SIZE': 1,
 
     # DEBUGGING
     # Use this to turn on debugging mode. This mode doesn't write any files
