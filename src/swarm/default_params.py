@@ -1,10 +1,11 @@
 from multiprocessing import cpu_count
 from socket import gethostname
-
+import datetime
 hostname = gethostname().split('.')
 machine_name = hostname[0]
 
 default_params = {
+    'LOG_FOLDER' : str(datetime.datetime.now()),
     # Set default step and search loop functions
     'SEARCH_LOOP': 'search_loop',
     'STEP': 'step',

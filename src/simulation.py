@@ -9,11 +9,12 @@ from py_trees.composites import Sequence, Selector
 from src.swarm.behaviors import *
 from src.swarm.backend import TestBackend
 from src.swarm.gui import SimulationWindow
-from src.swarm.agent import Agent, EvoAgent, Neighbourhood
+from src.swarm.agent import Agent, EvoAgent
+from src.swarm.neighbourhood import Neighbourhood
 from src.swarm.objects import FoodSource, Hub
 from src.swarm.types import ObjectType
 
-NUM_OF_AGENS = 30
+NUM_OF_AGENS = 1
 BOARD_SIZE = 30
 GENOME = [62933, 89433, 46352, 68354, 51358, 88331, 31682, 80501, 76268, 29841, 305, 76489, 12086, 47809, 29773, 16051, 20100, 92708, 11647, 68722, 41550, 93761, 75393, 73668, 85205, 659, 98622, 85241]
 #GENOME = None
@@ -36,7 +37,6 @@ if __name__ == '__main__':
 
     for f in food:
         backend.place_object(f, rand=True)
-
 
     agents = list()
     for i in range(NUM_OF_AGENS):

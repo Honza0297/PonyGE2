@@ -1,12 +1,13 @@
-import logging
+import os
 import random
 import sys
-import time
+import logging
 
 import py_trees
 from PyQt5 import QtCore
 
 from src.swarm import types
+from src.swarm.neighbourhood import Neighbourhood
 from src.swarm.types import ObjectType
 from src.swarm.packets import *
 import src.algorithm.parameters
@@ -20,83 +21,67 @@ from src.operators.replacement import replacement
 from src.swarm.bt import BTConstruct
 from src.swarm.default_params import default_params
 from src.representation.individual import Individual
-class Neighbourhood:
-    def __init__(self, neighbourhood=None):
-        if neighbourhood is None:
-            self.neighbourhood = list() # matrix
-            self.valid = False
-            self.radius = 0
-            self.center = None
-            self.size = 0
-        else:
-            self.set_neighbourhood(neighbourhood)
-
-    def __str__(self):
-        s = "  "
-        for i in range(len(self.neighbourhood)):
-            s += str(i) + (" " if i < 10 else "")
-        s += "\n"
-        cnt_r = 0
-        for r in self.neighbourhood:
-            s += str(cnt_r) + (" " if cnt_r < 10 else "")
-            cnt_r += 1
-            for tile in r:
-                if not tile:
-                    s += "X" + " "
-                else:
-                    s += str(tile.type.value) + " "
-            s += "\n"
-        return s
-
-    def set_neighbourhood(self, neighbourhood):
-        self.neighbourhood = neighbourhood
-        self.valid = True
-        self.radius = len(self.neighbourhood) // 2
-        self.center = (self.radius, self.radius)
-        self.size = len(self.neighbourhood)
-
-    def get(self, obj_type: types.ObjectType):
-        cells_with_object = list()
-        for row in self.neighbourhood:
-            for cell in row:
-                if cell:
-                    if cell.type == obj_type:
-                        cells_with_object.append(cell)
-
-        return len(cells_with_object) > 0, cells_with_object
-
 
 
 class Agent:
-    def __init__(self, name, sense_radius=1, max_speed=1, color=QtCore.Qt.black):
+    def __init__(self, name, sense_radius=1, max_speed=1, color=QtCore.Qt.black, level=logging.DEBUG):
         super(Agent, self).__init__()
+        # Basic agent properties
         self.name = name
         self.type = ObjectType.AGENT
-        self.position = None
-        self.bt_wrapper = BTConstruct(None, self)
-        self.sense_radius = sense_radius
         self.color = color
+
+        # Simulation properties
+        self.position = None
+        self.sense_radius = sense_radius
+        self.max_speed = max_speed
         self.neighbourhood = Neighbourhood()
         self.next_step = None
-        self.goal = None
         self.inventory = list()
         self.dropping_item = None  # item that should be dropped
         self.backend = None
-        self.max_speed = max_speed
+        self.goal = None
         self.steps = 0
         self.steps_without_evolution = 0
 
-        # agent.home_base = None  # why not, I say :)
+        # BT props
+        self.bt_wrapper = BTConstruct(None, self)
+
+        # GE props
+        self.GE_params = dict(default_params)
+
+        # Logging stuff
+        self.logger = logging.getLogger(name)
+        self.logger.setLevel(level)
+
+        # Deprecated etc
+        # agent.home_base = None
+
     def setup(self):
-        pass
+        # Prepare logger - for stderr and file
+        if not os.path.exists("../results/{}".format(self.GE_params["LOG_FOLDER"])):
+            os.makedirs("../results/{}".format(self.GE_params["LOG_FOLDER"]))
+
+        file_formatter = logging.Formatter("%(levelname)s:%(message)s")
+        file_handler = logging.FileHandler(filename="../results/{}/{}".format(self.GE_params["LOG_FOLDER"], self.name))
+        file_handler.setLevel(self.logger.level)
+        file_handler.setFormatter(file_formatter)
+
+        # For some reason, it logs even without streamhandler
+        """stream_formatter = logging.Formatter(self.name+":%(levelname)s:%(message)s")
+        stream_handler = logging.StreamHandler(stream=sys.stderr)
+        stream_handler.setLevel(self.logger.level)
+        stream_handler.setFormatter(stream_formatter)"""
+
+        self.logger.addHandler(file_handler)
+        #self.logger.addHandler(stream_handler)
+
+        # TODO two handlers: one for std and one for file
+        # TODO formatter(s)?
 
     def step(self):
-            # sense
-            resp = self.backend.sense_object_neighbourhood(self)
-            self.neighbourhood.set_neighbourhood(resp.neighbourhood)
+        raise NotImplemented
 
-            # act
-            self.bt_wrapper.behaviour_tree.tick()
     def set_position(self, pos):
         self.position = list(pos)
 
@@ -168,7 +153,7 @@ class EvoAgent(Agent):
         self.exchanged_individuals = dict()
         self.num_of_truly_exchanged_individuals = 0
 
-        self.GE_params = dict(default_params)
+        #self.GE_params = dict(default_params)
         self.param_file = params_file
         self.init_genome = init_genome
         self.exchange_prob = exchange_prob
@@ -177,6 +162,7 @@ class EvoAgent(Agent):
 
     def setup(self):
         self.init_GE()
+        super().setup()
 
     def init_GE(self):
         src.algorithm.parameters.load_params(self.param_file, agent=self)
@@ -212,7 +198,7 @@ class EvoAgent(Agent):
         self.visited_locations.add(tuple(self.position))
         self.steps += 1
         self.steps_without_evolution += 1
-
+        self.logger.debug("In step")
         resp = self.backend.sense_object_neighbourhood(self)
         self.neighbourhood.set_neighbourhood(resp.neighbourhood)
         agents_present, neighbouring_agent_cells = self.neighbourhood.get(types.ObjectType.AGENT)

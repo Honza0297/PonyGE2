@@ -101,10 +101,10 @@
         <action>.is_able_to_move = True
     }
     |{
-        <action>.is_able_to_pick_food = True if <objects>.item_type == "food" else False
+        <action>.is_able_to_pick_food = True if <dobjects>.item_type == "food" else False
     }
     |{
-        <action>.is_able_to_drop_food = True if <objects>.item_type == "food" else False
+        <action>.is_able_to_drop_food = True if <dobjects>.item_type == "food" else False
     }
 <objects> ::= <sobjects> | <dobjects>
     {
