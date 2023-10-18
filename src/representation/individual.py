@@ -26,27 +26,26 @@ class Individual(object):
         if map_ind:
             # The individual needs to be mapped from the given input
             # parameters.
-            self.phenotype, self.genome, self.tree, self.nodes, self.invalid, \
-                self.depth, self.used_codons = mapper(genome, ind_tree, agent=agent)
+            if self.agent.GE_params["ATTRIBUTE_GRAMMAR"]:
+                self.phenotype, self.genome, self.code_tree, self.nodes, self.invalid, \
+                    self.depth, self.used_codons = mapper(genome, ind_tree, agent=agent)
+            else:
+                self.phenotype, self.genome, self.code_tree, self.nodes, self.invalid, \
+                    self.depth, self.used_codons = mapper(genome, ind_tree, agent=agent)
 
         else:
             # The individual does not need to be mapped.
-            self.genome, self.tree = genome, ind_tree
+            self.genome, self.code_tree = genome, ind_tree
             self.invalid = False
 
         self.fitness = self.agent.GE_params['FITNESS_FUNCTION'].default_fitness
         self.runtime_error = False
         self.name = None
 
-        if genome:
-            #print("genome stop here")
-            pass
-        if self.agent.GE_params["ATTRIBUTE_GRAMMAR"]:
-            self.code_tree = None
 
     def perform_attribute_check(self):
         if self.agent.GE_params["ATTRIBUTE_GRAMMAR"]:
-            self.make_code_tree()
+            #self.make_code_tree()
             self.code_tree.run()
             self.check_attribute_validity()
 
@@ -105,8 +104,7 @@ class Individual(object):
                 str(self.phenotype) + "; " + str(self.fitness))
 
     def make_code_tree(self):
-        # TODO check time of this function!
-        self.code_tree = CodeTree(tree=self.tree, parent=None, lhs={}, agent=self.agent)
+        self.code_tree = CodeTree(tree=self.code_tree, parent=None, agent=self.agent)
         self.code_tree.build()
 
     def check_attribute_validity(self):
@@ -126,7 +124,7 @@ class Individual(object):
 
         if not self.agent.GE_params['GENOME_OPERATIONS']:
             # Create a new unique copy of the tree.
-            new_tree = self.tree.__copy__()
+            new_tree = self.code_tree.__copy__(None)
 
         else:
             new_tree = None
@@ -142,7 +140,7 @@ class Individual(object):
         new_ind.runtime_error = self.runtime_error
 
         if self.agent.GE_params["ATTRIBUTE_GRAMMAR"] and self.code_tree:
-            new_ind.code_tree = self.code_tree.deep_copy() #copy.deepcopy(self.code_tree)
+            new_ind.code_tree = self.code_tree.__copy__(None) #copy.deepcopy(self.code_tree)
 
         return new_ind
 

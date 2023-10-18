@@ -365,20 +365,20 @@ def subtree(p_0, p_1, agent=None):
             tail_1 = p_1.genome[p_1.used_codons:]
 
         # Get the set of labels of non terminals for each tree.
-        labels1 = p_0.tree.get_node_labels(set())
-        labels2 = p_1.tree.get_node_labels(set())
+        labels1 = p_0.code_tree.get_node_labels(set())
+        labels2 = p_1.code_tree.get_node_labels(set())
 
         # Find overlapping non-terminals across both trees.
         shared_nodes = intersect(labels1, labels2)
 
         if len(shared_nodes) != 0:
             # There are overlapping NTs, cross over parts of trees.
-            ret_tree0, ret_tree1 = do_crossover(p_0.tree, p_1.tree,
+            ret_tree0, ret_tree1 = do_crossover(p_0.code_tree, p_1.code_tree,
                                                 shared_nodes)
 
         else:
             # There are no overlapping NTs, cross over entire trees.
-            ret_tree0, ret_tree1 = p_1.tree, p_0.tree
+            ret_tree0, ret_tree1 = p_1.code_tree, p_0.code_tree
 
         # Initialise new individuals using the new trees.
         ind0 = individual.Individual(None, ret_tree0)

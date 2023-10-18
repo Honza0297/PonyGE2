@@ -67,7 +67,7 @@ def save_best_ind_to_file(stats, ind, end=False, name="best"):
     savefile.write("Generation:\n" + str(stats['gen']) + "\n\n")
     savefile.write("Phenotype:\n" + str(ind.phenotype) + "\n\n")
     savefile.write("Genotype:\n" + str(ind.genome) + "\n")
-    savefile.write("Tree:\n" + str(ind.tree) + "\n")
+    savefile.write("Tree:\n" + str(ind.code_tree) + "\n")
     if hasattr(params['FITNESS_FUNCTION'], "training_test"):
         if end:
             savefile.write("\nTraining fitness:\n" + str(ind.training_fitness))

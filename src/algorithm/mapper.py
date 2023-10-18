@@ -4,7 +4,7 @@ import numpy as np
 #from algorithm.parameters import params
 from representation.tree import Tree
 from utilities.representation.python_filter import python_filter
-
+from src.representation.code_tree import CodeTree, NonTerminal, Terminal
 
 def mapper(genome, tree, agent=None):
     """
@@ -39,9 +39,13 @@ def mapper(genome, tree, agent=None):
             used_codons = map_ind_from_genome(genome, agent=agent)
 
         else:
-            # Build the tree using algorithm.mapper.map_tree_from_genome().
-            phenotype, genome, tree, nodes, invalid, depth, \
-            used_codons = map_tree_from_genome(genome, agent=agent)
+            # Build the tree using algorithm.mapper.map_tree_from_genome() or algorithm.mapper.map_codetree_from_genome() for attribute grammar.
+            if agent.GE_params["ATTRIBUTE_GRAMMAR"]:
+                phenotype, genome, tree, nodes, invalid, depth, \
+                    used_codons = map_codetree_from_genome(genome, agent=agent)
+            else:
+                phenotype, genome, tree, nodes, invalid, depth, \
+                    used_codons = map_tree_from_genome(genome, agent=agent)
 
     else:
         # We have a tree.
@@ -98,6 +102,7 @@ def map_ind_from_genome(genome, agent=None):
 
     # Initialise the list of unexpanded non-terminals with the start rule.
     unexpanded_symbols = deque([(bnf_grammar.start_rule, 1)])
+    #code_tree = CodeTree()
 
     while (wraps < max_wraps) and unexpanded_symbols:
         # While there are unexpanded non-terminals, and we are below our
@@ -138,6 +143,8 @@ def map_ind_from_genome(genome, agent=None):
             # Select a production based on the next available codon in the
             # genome.
             current_production = genome[used_input % n_input] % no_choices
+            children = (production_choices[current_production]["choice"][i]["symbol"] for i in range(len(production_choices[current_production]["choice"])))
+            #code_tree.build_node(nt_name=bnf_grammar.start_rule["symbol"], raw_code=production_choices[current_production].attr_code, children=children)
 
             # Use an input
             used_input += 1
@@ -157,6 +164,7 @@ def map_ind_from_genome(genome, agent=None):
                     nt_count += 1
 
             # Add the new children to the list of unexpanded symbols.
+            # Also here is reversed the reversed order from appendleft :)
             unexpanded_symbols.extendleft(children)
 
             if nt_count > 0:
@@ -202,6 +210,137 @@ def map_tree_from_genome(genome, agent=None):
         return phenotype, genome, tree, nodes, invalid, max_depth, \
                used_codons
 
+
+def map_codetree_from_genome(genome, agent=None):
+    """
+    Maps a full tree from a given genome.
+
+    :param genome: A genome to be mapped.
+    :return: All components necessary for a fully mapped individual.
+    """
+
+    # Initialise an instance of the tree class
+    tree = CodeTree(agent=agent, root=str(agent.GE_params['BNF_GRAMMAR'].start_rule["symbol"]))
+
+    # Map tree from the given genome
+    output, used_codons, nodes, depth, max_depth, invalid = \
+        genome_codetree_map(tree, genome, [], 0, 0, 0, 0, agent=agent)
+
+    # Build phenotype.
+    phenotype = "".join(output)
+
+    if invalid:
+        # Return "None" phenotype if invalid
+        return None, genome, tree, nodes, invalid, max_depth, \
+               used_codons
+
+    else:
+        return phenotype, genome, tree, nodes, invalid, max_depth, \
+               used_codons
+
+
+def genome_codetree_map(tree, genome, output, index, depth, max_depth, nodes,
+                    invalid=False, agent=None):
+    """
+    Recursive function which builds a tree using production choices from a
+    given genome. Not guaranteed to terminate.
+
+    :param tree: An instance of the representation.tree.Tree class.
+    :param genome: A full genome.
+    :param output: The list of all terminal nodes in a subtree. This is
+    joined to become the phenotype.
+    :param index: The index of the current location on the genome.
+    :param depth: The current depth in the tree.
+    :param max_depth: The maximum overall depth in the tree so far.
+    :param nodes: The total number of nodes in the tree thus far.
+    :param invalid: A boolean flag indicating whether or not the individual
+    is invalid.
+    :return: index, the index of the current location on the genome,
+             nodes, the total number of nodes in the tree thus far,
+             depth, the current depth in the tree,
+             max_depth, the maximum overall depth in the tree,
+             invalid, a boolean flag indicating whether or not the
+             individual is invalid.
+    """
+
+    if not invalid and index < len(genome) * (agent.GE_params['MAX_WRAPS'] + 1):
+        # If the solution is not invalid thus far, and if we still have
+        # remaining codons in the genome, then we can continue to map the tree.
+
+        if agent.GE_params['MAX_TREE_DEPTH'] and (max_depth > agent.GE_params['MAX_TREE_DEPTH']):
+            # We have breached our maximum tree depth limit.
+            invalid = True
+
+        # Increment and set number of nodes and current depth.
+        nodes += 1
+        depth += 1
+        #tree.id, tree.depth = nodes, depth
+
+        # Find all production choices and the number of those production
+        # choices that can be made by the current root non-terminal.
+        productions = agent.GE_params['BNF_GRAMMAR'].rules[tree.root]['choices']
+        no_choices = agent.GE_params['BNF_GRAMMAR'].rules[tree.root]['no_choices']
+
+        # Set the current codon value from the genome.
+        codon = genome[index % len(genome)]
+
+        # Select the index of the correct production from the list.
+        selection = codon % no_choices
+
+        # Set the chosen production
+        chosen_prod = productions[selection]
+        children = (chosen_prod["choice"][i]["symbol"] for i in range(len(chosen_prod["choice"])))
+        tree.build_node(nt_name=tree.root, raw_code=chosen_prod["attr_code"][1:-1], rhs_sequence=children)
+        # Increment the index
+        index += 1
+
+        for symbol, rhs_symbol in zip(chosen_prod['choice'], tree.rhs):
+            # Add children to the derivation tree by creating a new instance
+            # of the representation.tree.Tree class for each child.
+
+            if symbol["type"] == "T":
+                # Append the child to the parent node. Child is a terminal, do
+                # not recurse.
+                tree.children.append(CodeTree(root=symbol["symbol"], lhs=rhs_symbol, parent=tree, agent=agent))
+                output.append(symbol["symbol"])
+
+            elif symbol["type"] == "NT":
+                # Append the child to the parent node.
+                tree.children.append(CodeTree(root=symbol["symbol"], lhs=rhs_symbol, parent=tree, agent=agent))
+
+                # Recurse by calling the function again to map the next
+                # non-terminal from the genome.
+                output, index, nodes, d, max_depth, invalid = \
+                    genome_codetree_map(tree.children[-1], genome, output,
+                                    index, depth, max_depth, nodes,
+                                    invalid=invalid, agent=agent)
+
+    else:
+        # Mapping incomplete, solution is invalid.
+        return output, index, nodes, depth, max_depth, True
+
+    # Find all non-terminals in the chosen production choice.
+    NT_kids = [kid for kid in tree.children if kid.root in
+               agent.GE_params['BNF_GRAMMAR'].non_terminals]
+
+    if not NT_kids:
+        # There are no non-terminals in the chosen production choice, the
+        # branch terminates here.
+        depth += 1
+        nodes += 1
+
+    if not invalid:
+        # The solution is valid thus far.
+
+        if depth > max_depth:
+            # Set the new maximum depth.
+            max_depth = depth
+
+        if agent.GE_params['MAX_TREE_DEPTH'] and (max_depth > agent.GE_params['MAX_TREE_DEPTH']):
+            # If our maximum depth exceeds the limit, the solution is invalid.
+            invalid = True
+
+    return output, index, nodes, depth, max_depth, invalid
 
 def genome_tree_map(tree, genome, output, index, depth, max_depth, nodes,
                     invalid=False, agent=None):

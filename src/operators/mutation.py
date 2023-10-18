@@ -169,10 +169,10 @@ def subtree(ind):
 
     # Allows for multiple mutation events should that be desired.
     for i in range(agent.GE_params['MUTATION_EVENTS']):
-        ind.tree = subtree_mutate(ind.tree)
+        ind.code_tree = subtree_mutate(ind.code_tree)
 
     # Re-build a new individual with the newly mutated genetic information.
-    ind = individual.Individual(None, ind.tree)
+    ind = individual.Individual(None, ind.code_tree)
 
     # Add in the previous tail.
     ind.genome = ind.genome + tail

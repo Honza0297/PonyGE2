@@ -53,15 +53,15 @@ is_able_to_drop_food, S, False
 ---
 
 <objects>
-item_type,S,""
+item_type,S,str()
 ---
 
 <dobjects>
-item_type,S,""
+item_type,S,str()
 ---
 
 <sobjects>
-item_type,S,""
+item_type,S,str()
 ---
 
 <action>

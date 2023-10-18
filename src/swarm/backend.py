@@ -22,7 +22,7 @@ class Backend(threading.Thread):
         self.random = random
 
         self.step = False
-        self.stop = False # True if wait for buttons
+        self.stop = False# True if wait for buttons, False for autostart
 
         # Logging
         self.logger = logging.getLogger("backend")
@@ -48,6 +48,7 @@ class Backend(threading.Thread):
             self.agents.append(agent)
             agent.backend = self
             agent.setup()
+            pass  # place for breakpoint
         else:
             raise KeyError("Agent name already registered: {}", agent.name)
 
@@ -103,8 +104,8 @@ class TestBackend(Backend):
         self.update_gui()
 
     def run(self):
-        #self.run_wrapper()
-        cProfile.runctx("self.run_wrapper()", globals(), locals(), "backend_stats_{}".format(time.time()))
+        self.run_wrapper()
+        #cProfile.runctx("self.run_wrapper()", globals(), locals(), "backend_stats_{}".format(time.time()))
         print("End")
         sys.exit(0)
 
@@ -142,14 +143,16 @@ class TestBackend(Backend):
                 self.logger.info("---------------------------------------")
                 cnt += 1
                 if cnt > 5:  # TODO oddelat stopku
-                    return
+                    pass
+                    #self.stop = True
+                    #return
             else:
                 time.sleep(0.2)
 
     def pick_up_req(self, agent, pos):
         tile = self.board_model.tiles[pos[0]][pos[1]]
         resp = PickUpResp(agent.name, None)
-        self.logger.debug("[PCK] {} picks {} at {}".format(agent.name, tile.object.value, pos))
+        self.logger.debug("[PCK] {} picks {} at {}".format(agent.name, tile.object, pos))
 
         if tile and tile.object:
             if tile.type == ObjectType.HUB:
