@@ -261,7 +261,7 @@ def genome_tree_map(tree, genome, output, index, depth, max_depth, nodes,
         tree.children = []
         # copy attribute code if attribute grammar is used
         if agent.GE_params["ATTRIBUTE_GRAMMAR"]:
-            tree.attr_code.set_attr_code(chosen_prod["attr_code"])
+            #tree.attr_code.set_attr_code(chosen_prod["attr_code"])
             tree.raw_code = chosen_prod["attr_code"][1:-1]
 
         for symbol in chosen_prod['choice']:

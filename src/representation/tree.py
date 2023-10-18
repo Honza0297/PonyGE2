@@ -1,6 +1,7 @@
 #from algorithm.parameters import params
 from representation.attributes import AttrCode, NontermAttrs
 
+
 class Tree:
 
     def __init__(self, expr, parent, agent):
@@ -19,10 +20,10 @@ class Tree:
         self.children = []
         self.snippet = None
 
-        self.agent=agent
+        self.agent = agent
         if self.agent.GE_params["ATTRIBUTE_GRAMMAR"]:
-            self.attr_code = AttrCode(None, self, agent=agent)
-            self.valid = True
+        #    self.attr_code = AttrCode(None, self, agent=agent)
+        #    self.invalid = False
             self.raw_code = None
 
     def __str__(self):
@@ -69,7 +70,8 @@ class Tree:
         tree_copy.snippet = self.snippet
 
         if self.agent.GE_params["ATTRIBUTE_GRAMMAR"]:
-            tree_copy.attr_code = self.attr_code
+            #tree_copy.attr_code = self.attr_code
+            tree_copy.raw_code = self.raw_code
 
         for child in self.children:
             # Recurse through all children.

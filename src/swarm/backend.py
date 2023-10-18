@@ -1,5 +1,7 @@
-import queue
-import random
+import cProfile
+import os
+import sys
+
 import time
 import logging
 import threading
@@ -11,7 +13,7 @@ from src.swarm.types import ObjectType
 import random
 
 class Backend(threading.Thread):
-    def __init__(self, gui):
+    def __init__(self, gui, level):
         super(Backend, self).__init__()
         self.gui = gui
 
@@ -20,8 +22,26 @@ class Backend(threading.Thread):
         self.random = random
 
         self.step = False
-        self.stop = True
+        self.stop = False # True if wait for buttons
 
+        # Logging
+        self.logger = logging.getLogger("backend")
+        self.logger.setLevel(level)
+
+        # Simulation
+        # TODO stats: food collected, food dropped, food dropped at base
+
+
+    def setup(self):
+        if not os.path.exists("../results/{}".format(self.agents[0].GE_params["LOG_FOLDER"])):
+            os.makedirs("../results/{}".format(self.agents[0].GE_params["LOG_FOLDER"]))
+
+        file_formatter = logging.Formatter("%(levelname)s:%(message)s")
+        file_handler = logging.FileHandler(filename="../results/{}/backend".format(self.agents[0].GE_params["LOG_FOLDER"]))
+        file_handler.setLevel(self.logger.level)
+        file_handler.setFormatter(file_formatter)
+
+        self.logger.addHandler(file_handler)
 
     def register_agent(self, agent):
         if agent not in self.agents:
@@ -37,7 +57,7 @@ class Backend(threading.Thread):
         self.gui.update(self.board_model)
 
     def run(self):
-        pass
+        raise NotImplemented
 
     def place_object(self, obj: EnvironmentObject, position=None, rand=False):
         pos_ok = False
@@ -71,38 +91,65 @@ class Backend(threading.Thread):
                     return False
         return True
 
+
 class TestBackend(Backend):
-    def __init__(self, gui, deterministic=False):
-        super(TestBackend, self).__init__(gui)
+    def __init__(self, gui, deterministic=False, level=logging.DEBUG):
+        super(TestBackend, self).__init__(gui, level)
         self.deterministic = deterministic
 
     def setup(self):
+        super().setup()
         self.place_agents()
         self.update_gui()
 
     def run(self):
+        #self.run_wrapper()
+        cProfile.runctx("self.run_wrapper()", globals(), locals(), "backend_stats_{}".format(time.time()))
+        print("End")
+        sys.exit(0)
+
+    def run_wrapper(self):
         cnt = 0
         self.setup()
+        self.logger.debug("NUmber of agents: {}".format(len(self.agents)))
         while True:
             if not self.stop:
                 if self.step:
                     self.stop = True
-                logging.debug("###########\nIteration number {}".format(cnt))
-                cnt += 1
+                self.logger.debug("[S{}] Step number {}".format(cnt, cnt))
+                step_start_time = time.perf_counter()
+
+                # Stats
+                fitnesses = tuple(agent.individual.fitness for agent in self.agents)
+                best_fitness = max(fitnesses)
+                idx_best = fitnesses.index(best_fitness)
+                avg_fitness = sum(fitnesses)/len(fitnesses)
+                self.logger.debug("[BST_F] Best fitness at the start: {} ({})".format(best_fitness, self.agents[idx_best]))
+                self.logger.debug("[AVG_F] Average fitness at the start: {}".format(avg_fitness))
+
                 if not self.deterministic:
                     random.shuffle(self.agents)  # change order every round to simulate non deterministic order of action for every agent
+                    self.logger.debug("Agents order for this step: {}".format([a.name[-1] for a in self.agents]))
                 for agent in self.agents:
-                    #print("BT of {}".format(agent.name))
-                    agent.bt_wrapper.visualize()
-                    #print("Genome of {}: {}".format(agent.name, agent.individual.genome))
-                    if agent.name == "agent0" :
-                        print("meow") # just a place to control and observe one agent
+                    if agent.name == "agent0":
+                        pass  # NOTE just a place to control and observe one agent
                     agent.step()
-            time.sleep(0.2)
+                step_end_time = time.perf_counter()
+                duration = step_end_time-step_start_time
+                self.logger.debug("[TIME] Step {} took {} s".format(cnt, duration))
+                if duration < 0.2:  # NOTE Arbitrary value to make the simulation reasonably slow
+                    time.sleep(0.2-duration)
+                self.logger.info("---------------------------------------")
+                cnt += 1
+                if cnt > 5:  # TODO oddelat stopku
+                    return
+            else:
+                time.sleep(0.2)
 
     def pick_up_req(self, agent, pos):
         tile = self.board_model.tiles[pos[0]][pos[1]]
         resp = PickUpResp(agent.name, None)
+        self.logger.debug("[PCK] {} picks {} at {}".format(agent.name, tile.object.value, pos))
 
         if tile and tile.object:
             if tile.type == ObjectType.HUB:
@@ -116,6 +163,7 @@ class TestBackend(Backend):
         resp = DropResp(agent.name, dropped=False)
         item_type = req.item_type
         pos = req.position
+        self.logger.debug("[DRP] {} drops {} at {}".format(agent.name, item_type.value, pos))
         if not self.board_model.tiles[pos[0]][pos[1]].occupied:
             if item_type == ObjectType.FOOD:
                 new_object = FoodSource(name="food_dropped_by_{}".format(agent.name), radius=0)
@@ -123,10 +171,11 @@ class TestBackend(Backend):
                 resp.dropped = True
             else:
                 raise TypeError("This object cannot be dropped :)")
-        elif self.board_model.tiles[pos[0]][pos[1]].occupied and self.board_model.tiles[pos[0]][pos[1]].type == ObjectType.HUB: # item dropped to the base
+        elif self.board_model.tiles[pos[0]][pos[1]].occupied and self.board_model.tiles[pos[0]][pos[1]].type == ObjectType.HUB and item_type == ObjectType.FOOD: # item dropped to the base
             resp.dropped = True
-            logging.debug("BKN: Food was dropped to the base")
+            self.logger.info("{} dropped food to the base".format(agent.name, pos))
             # TODO maybe notify base that food arrived?
+            # TODO take note that food was delivered
         return resp
 
     def place_agents(self):
@@ -173,19 +222,20 @@ class TestBackend(Backend):
         return msg
 
     def move_agent(self, agent, old_position, new_position):
+        # TODO check whether checks are present (AKA check whether agent can or cannot move to occupied location)
         resp = Position(agent.name, agent.position)
+
         if compute_distance(old_position, new_position) > agent.max_speed:
             raise ValueError("Desired distance greater than max speed")
         if list(old_position) != list(agent.position):
             raise RuntimeError("Agent does not know where it is.")
 
-        logging.debug("BKN: tries to move agent from {} to {}".format(agent.position, new_position))
         if not self.board_model.tiles[new_position[0]][new_position[1]].occupied:
             self.board_model.tiles[agent.position[0]][agent.position[1]].remove_object(agent)
             agent_placed = self.board_model.tiles[new_position[0]][new_position[1]].place_object(agent)
             if agent_placed:
                 resp.position = new_position
-                logging.debug("BKN: Agent {} moved to {}".format(agent.name, new_position))
+                self.logger.debug("{} moved from {} to {}".format(agent.name, old_position, new_position))
             else:
                 raise RuntimeError("Agent {} not placed in desired location".format(agent.name))
         else:

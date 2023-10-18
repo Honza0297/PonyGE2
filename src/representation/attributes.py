@@ -6,7 +6,7 @@ from re import DOTALL, MULTILINE, finditer, match
 productionpartsregex = '\ *([\r\n]+)\ *|([^\'"<\r\n]+)|\'(.*?)\'|"(.*?)"|(?P<subrule><[^>|\s]+>)|([<]+)'
 
 
-class AttrCode():
+class AttrCode:
     def __init__(self, code, tree, agent=None):
         # get a reference to the tree/node this instance is part of
         self.agent = agent

@@ -47,7 +47,7 @@ def generate_tree(tree, genome, output, method, nodes, depth, max_depth,
     chosen_prod = choice(available)
     codon = generate_codon(chosen_prod, productions, agent)
     if agent.GE_params["ATTRIBUTE_GRAMMAR"]:
-        tree.attr_code.set_attr_code(chosen_prod["attr_code"])
+        #tree.attr_code.set_attr_code(chosen_prod["attr_code"])
         tree.raw_code = chosen_prod["attr_code"][1:-1]
     # Set the codon for the current node and append codon to the genome.
     tree.codon = codon
