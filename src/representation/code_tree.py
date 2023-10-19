@@ -24,8 +24,8 @@ class CodeTree(object):
     def build(self):
         self.raw_code = self.tree.raw_code
         if not self.lhs:
-            self.lhs = NonTerminal(self.tree.root, self.symbol_table[self.tree.root])
-        self.rhs = [NonTerminal(node.root, self.symbol_table[node.root], agent=self.agent) if node.root in self.symbol_table.keys() else Terminal(node.root, agent=self.agent) for node in self.tree.children]
+            self.lhs = self.set_nonterminal(self.tree.root, self.symbol_table[self.tree.root])
+        self.rhs = [self.set_nonterminal(node.root, self.symbol_table[node.root]) if node.root in self.symbol_table.keys() else self.set_terminal(node.root) for node in self.tree.children]
         self.set_aliases()
         for tree_child, rhs_child in zip(self.tree.children, self.rhs):
             self.children.append(CodeTree(tree_child, self, rhs_child, agent=self.agent))
@@ -41,19 +41,31 @@ class CodeTree(object):
             else:
                 self.symbol_table = self.parent.symbol_table
         if not self.lhs:
-            self.lhs = NonTerminal(nt_name, self.symbol_table[nt_name], agent=self.agent)
+            self.lhs = self.set_nonterminal(nt_name, self.symbol_table[nt_name])
             # list of (non)terminals
         for name in rhs_sequence:
             if name[0] == "<":  # Nonterm
-                self.rhs.append(NonTerminal(name, self.symbol_table[name], agent=self.agent))
+                self.rhs.append(self.set_nonterminal(name, self.symbol_table[name]))
             else:
-                self.rhs.append(Terminal(name, self.agent))
+                self.rhs.append(self.set_terminal(name))
         self.set_aliases()
         if processed_code:
             self.code = processed_code
         else:
             self.parse_code()
 
+    def set_nonterminal(self, name, attributes=None):
+        nonterminal = {"attributes": {}, "name": name}
+        if not attributes and name in self.agent.GE_params["BNF_GRAMMAR"].non_terminals.keys():
+            for attribute in self.agent.GE_params["BNF_GRAMMAR"].non_terminals[name]["attributes"].keys():
+                nonterminal["attributes"][attribute] = {"type": None, "value": None}
+        else:
+            for attribute in attributes:  # need to make a deep copy
+                nonterminal["attributes"][attribute] = {k: v for k, v in attributes[attribute].items()}  # k = type, va
+        return nonterminal
+
+    def set_terminal(self, name):
+        return {"name": name}
 
     def __str__(self):
         return str(self.root) + " -> " + str(self.rhs)
@@ -61,12 +73,12 @@ class CodeTree(object):
     def parse_code(self):
         if not self.raw_code:
             return
-        template = "self.aliases[\"{}\"].attributes[\"{}\"][\"value\"]"
+        template = "self.aliases[\"{}\"][\"attributes\"][\"{}\"][\"value\"]"
         for line in self.raw_code.splitlines():
             line = line.strip()
             if not line:
                 continue
-            nt_and_attr_regex = '\ *([\r\n]+)\ *|([^\'"<\r\n]+)|\'(.*?)\'|\"(.*?)\"|(?P<subrule><[^>|\s]+>\.[A-Za-z1-9_]+)|([<]+)'
+            nt_and_attr_regex = r'\ *([\r\n]+)\ *|([^\'"<\r\n]+)|\'(.*?)\'|\"(.*?)\"|(?P<subrule><[^>|\s]+>\.[A-Za-z1-9_]+)|([<]+)'
             tmp_line = list()
             for ntas in finditer(nt_and_attr_regex, line):
                 # noinspection DuplicatedCode
@@ -83,12 +95,6 @@ class CodeTree(object):
                     tmp_line.append(template.format(nt, attr))
             self.code.append(tmp_line)
 
-    def get_child(self, nonterm):
-        for c in self.tree.children:
-            if c.root == nonterm:
-                return c
-        return None
-
     def set_aliases(self):
         if not self.raw_code:
             return
@@ -98,30 +104,30 @@ class CodeTree(object):
             # aliases thus are:
             # <S>   <S>   <A>
             # <S_1> <S_2> <A>
-        nts_in_rule = [self.lhs.name] + [token.name if isinstance(token, NonTerminal) else None for token in self.rhs]
-        while None in nts_in_rule:
-            nts_in_rule.remove(None)
+        nts_in_rule = [self.lhs["name"]]
+        for token in self.rhs:
+            if len(token.keys()) > 1:
+                nts_in_rule.append(token["name"])
 
-        counts = dict()
+        num_of_occurrences = dict()
         aliases = list()
         for nt in nts_in_rule:
-            counts[nt] = nts_in_rule.count(nt)
+            num_of_occurrences[nt] = nts_in_rule.count(nt)
         for nt in nts_in_rule:
             if nts_in_rule.count(nt) == 1:
                 aliases.append(nt)
             else:
                 aliases.append(
-                    "<" + nt[1:-1] + "_" + str(nts_in_rule.count(nt) - counts[nt] + 1) + ">")
-                counts[nt] -= 1
+                    "<" + nt[1:-1] + "_" + str(nts_in_rule.count(nt) - num_of_occurrences[nt] + 1) + ">")
+                num_of_occurrences[nt] -= 1
 
-        nonterminals = [self.lhs] + [token if isinstance(token, NonTerminal) else None for token in self.rhs]
-        while None in nonterminals:
-            nonterminals.remove(None)
+        nonterminals = [self.lhs]
+        for token in self.rhs:
+            if len(token.keys()) > 1:
+                nonterminals.append(token)
+
         for i in range(len(nonterminals)):
             self.aliases[aliases[i]] = nonterminals[i]
-
-        if "<objects>" in aliases:
-            pass
 
     def make_symbol_table(self):
         tmp = self.agent.GE_params["BNF_GRAMMAR"].non_terminals
@@ -142,34 +148,28 @@ class CodeTree(object):
 
                     name, attribute_type, default_value = line.split(",")
                     default_value = eval(default_value)
-                    """types = [int, list, float]
-                    for t in types:
-                        try:
-                            default_value = t(default_value)
-                            break
-                        except ValueError:
-                            pass"""
                     self.symbol_table[block[0]][name] = {"type": attribute_type.strip(), "value": default_value.strip() if type(default_value) == str else default_value}
         #print(self.symbol_table)
 
     def run(self):
-        ntas_regex = 'self\.aliases\[\"\<[a-zA-Z1-9_]+\>\"\]\.attributes\[\"[a-z_1-9]+\"\]\[\"value\"\]'
+        ntas_regex = 'self\.aliases\[\"\<[a-zA-Z1-9_]+\>\"\]\[\"attributes\"]\[\"[a-z_1-9]+\"\]\[\"value\"\]'
         run_children = False
         children_ran = False
         for code_line in self.code:
             # dummy = "".join(code_line)
-            nt, var = None, None
+            nt, attribute = None, None
 
             # First part in the code line is a non-terminal -> this line is an assignment
             if match(ntas_regex, code_line[0]):
-                nt, var = self._get_nt_and_var_from_code_line_part(code_line[0])
+                nt, attribute = self._get_nt_and_var_from_code_line_part(code_line[0])
             else:
                 for item in code_line:
                     if match(ntas_regex, item):
-                        nt, var = self._get_nt_and_var_from_code_line_part(item)
+                        nt, attribute = self._get_nt_and_var_from_code_line_part(item)
             try:
-                attribute_type = self.aliases[nt].attributes[var]["type"]
+                attribute_type = self.aliases[nt]["attributes"][attribute]["type"]
             except KeyError:
+                print("meow")
                 pass
             if attribute_type == "I":
                 try:
@@ -178,7 +178,6 @@ class CodeTree(object):
                 except Exception as e:
                     print(" ".join(code_line))
                     print(e)
-                    print("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAa")
             elif attribute_type == "S":
                 operators = ["+=", "-=", "/=", "*=", "<", ">", ">=", "<="]
                 # check whether it is a literal assignment - in that case, treat it like "I" type
@@ -190,7 +189,7 @@ class CodeTree(object):
                     except Exception as e:
                         print(" ".join(code_line))
                         print("\n\n"+str(repr(e))+"\n\n")
-                        print("##########################################################################x")
+                        print("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX")
 
                 else:
                     if not children_ran:
@@ -198,18 +197,17 @@ class CodeTree(object):
                         for child in self.children:
                             # Check for leafs and perform recursive code run only if it will
                             # be applied to non-leaf
-                            if child.lhs.name in self.symbol_table.keys():
+                            if child.lhs["name"] in self.symbol_table.keys():
                                 child.run()
                     try:
                         exec(" ".join(code_line))
                     except Exception as e:
                         print(" ".join(code_line))
                         print(e)
-                        print("SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSsss")
 
         if run_children and not children_ran:
             for child in self.children:
-                if child.lhs.name in self.symbol_table.keys():
+                if child.lhs["name"] in self.symbol_table.keys():
                     child.run()
 
         if not self.parent:
@@ -230,24 +228,22 @@ class CodeTree(object):
     def error(self):
         # TODO introduce attribute fitness
         self.invalid = True
-        #print("EEEERRRROOOORRRR")
 
     def ok(self):
         # We do not set invalid flag here 'cause we would potentially overwrite some error
         pass
-        #print("OOOKKK")
 
     def _get_nt_and_var_from_code_line_part(self, text):
         nt = "<" + text.split("<")[1].split(">")[0] + ">"
         var = None
-        var_id_regex = r'(?P<var_id>(?<=\.attributes\[\")[a-z\_1-9]+)'
+        var_id_regex = r'(?P<var_id>(?<=\["attributes"]\[\")[a-z\_1-9]+)'
         for regex_match in finditer(var_id_regex, text):
             if regex_match.group("var_id"):
                 var = regex_match.group("var_id")
                 return nt, var
 
     def __copy__(self, parent):
-        lhs_copy = NonTerminal(name=self.root, agent=self.agent) if isinstance(self.lhs, NonTerminal) else Terminal(name=self.root)
+        lhs_copy = self.set_nonterminal(self.root) if len(self.lhs.keys()) > 1 else self.set_terminal(self.root)
         tree_copy = CodeTree(root=self.root, lhs=lhs_copy, parent=parent, agent=self.agent)
 
         if not self.parent:
@@ -258,7 +254,7 @@ class CodeTree(object):
                     attributes[attribute] = {k: v for k, v in self.symbol_table[nt][attribute].items()}
                 symbol_table_copy[nt] = attributes
             tree_copy.symbol_table = symbol_table_copy
-        rhs_seq = (symbol.name for symbol in self.rhs)
+        rhs_seq = (symbol["name"] for symbol in self.rhs)
         tree_copy.build_node(nt_name=self.root, raw_code=self.raw_code, rhs_sequence=rhs_seq, processed_code=self.code)
 
         for child in self.children:

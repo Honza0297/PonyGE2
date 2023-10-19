@@ -104,8 +104,8 @@ class TestBackend(Backend):
         self.update_gui()
 
     def run(self):
-        self.run_wrapper()
-        #cProfile.runctx("self.run_wrapper()", globals(), locals(), "backend_stats_{}".format(time.time()))
+        #self.run_wrapper()
+        cProfile.runctx("self.run_wrapper()", globals(), locals(), "backend_stats_{}".format(time.time()))
         print("End")
         sys.exit(0)
 
@@ -143,9 +143,8 @@ class TestBackend(Backend):
                 self.logger.info("---------------------------------------")
                 cnt += 1
                 if cnt > 5:  # TODO oddelat stopku
-                    pass
-                    #self.stop = True
-                    #return
+                    self.stop = True
+                    return
             else:
                 time.sleep(0.2)
 
