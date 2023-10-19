@@ -109,8 +109,8 @@ def variable_onepoint(p_0, p_1, agent=None):
         c_0, c_1 = genome_0[:], genome_1[:]
 
     # Put the new chromosomes into new individuals.
-    ind_0 = individual.Individual(c_0, None, agent=agent)
-    ind_1 = individual.Individual(c_1, None, agent=agent)
+    ind_0 = individual.Individual(c_0, None, params=agent.GE_params)
+    ind_1 = individual.Individual(c_1, None, params=agent.GE_params)
 
     return [ind_0, ind_1]
 

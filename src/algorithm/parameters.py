@@ -113,8 +113,8 @@ def set_params(command_line_args, create_files=True, agent=None):
                     'POPULATION_SIZE'])
 
             # Set the size of a generation
-            agent.GE_params['GENERATION_SIZE'] = agent.GE_params['POPULATION_SIZE'] - \
-                                        agent.GE_params['ELITE_SIZE']
+            agent.GE_params['GENERATION_SIZE'] = int(agent.GE_params['POPULATION_SIZE']) - \
+                                        int(agent.GE_params['ELITE_SIZE'])
 
         if (agent.GE_params['MUTATION_PROBABILITY'] is not None and
             agent.GE_params['MUTATION_EVENTS'] != 1):

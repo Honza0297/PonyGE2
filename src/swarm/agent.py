@@ -18,6 +18,7 @@ from src.fitness.swarm_fitness_diversity import \
 from src.operators.selection import selection
 from src.operators.crossover import crossover
 from src.operators.mutation import mutation
+from src.algorithm.mapper import mapper
 from src.operators.replacement import replacement
 from src.swarm.bt import BTConstruct
 from src.swarm.default_params import default_params
@@ -188,23 +189,32 @@ class EvoAgent(Agent):
         if self.init_genome:
             individuals = [Individual(genome=self.init_genome, ind_tree=None, agent=self)]
         else:
-            individuals = initialisation(size=10, agent=self)  # size of the population = 10
+            individuals = initialisation(size=self.GE_params["POPULATION_SIZE"], params=self.GE_params)
 
-        self.eval_pop_and_choose_new_individual(individuals)
+        individuals = evaluate_fitness(individuals, self)
+        self.choose_new_individual(individuals)
 
-    def eval_pop_and_choose_new_individual(self, individuals):
-
-        individuals = evaluate_fitness(individuals, agent=self)
+    def choose_new_individual(self, individuals):
         individuals.sort(reverse=True)
+
+        fitnesses = tuple(individual.fitness if individual.fitness else 0 for individual in individuals)
+        if fitnesses:
+            best_fitness = max(fitnesses)
+            avg_fitness = sum(fitnesses) / len(fitnesses)
+            self.logger.debug("[LST_F] List of fitness values: {}.".format(fitnesses))
+            self.logger.debug("[AVG_F] Average fitness: {}".format(avg_fitness))
+
 
         # Assign the genome to the agent
         self.individuals = individuals
-        self.individual = self.individuals[0]  # first = best
-        self.individual.fitness = 0
+        if not self.individual or self.individual.fitness <= self.individuals[0].fitness:
+            self.logger.debug("[IND_CHG] Current individual changed (fitness {} -> {})".format(self.individual.fitness if self.individual else "nan", self.individuals[0].fitness))
+            self.individual = self.individuals[0]  # first = best
+        self.individual.fitness = 0  # zeoring fitness function
 
         # Exchange genome with itself :)
-        self.exchanged_individuals[self.name] = self.individual
-        self.num_of_truly_exchanged_individuals += 1
+        self.exchanged_individuals = {self.name: self.individual}
+        self.num_of_truly_exchanged_individuals = 1
 
         self.bt_wrapper.xmlstring = self.individual.phenotype
         self.bt_wrapper.bt_from_xml()
@@ -219,7 +229,7 @@ class EvoAgent(Agent):
         self.logger.info("[S{}] Step {}".format(self.steps, self.steps))
         self.logger.debug(
             "[SWE{}] Step without evolution {}".format(self.steps_without_evolution, self.steps_without_evolution))
-        self.logger.debug("[F] Current fitness: {}".format(self.individual.fitness))
+        self.logger.debug("[F] Current fitness at the start: {}".format(self.individual.fitness))
         # actually sense
         resp = self.backend.sense_object_neighbourhood(self)
         self.neighbourhood.set_neighbourhood(resp.neighbourhood)
@@ -254,7 +264,6 @@ class EvoAgent(Agent):
 
             # Crossover parents and add to the new population.
             cross_pop = crossover(parents, self)
-            # TODO: brutálně neefektivní, tady dělám stromy, které ale vzápětí zahodím.
 
             # Mutate the new population.
             new_pop = mutation(cross_pop, self)
@@ -268,9 +277,8 @@ class EvoAgent(Agent):
             # Replace the old population with the new population.
             individuals = replacement(new_pop, self.individuals, self)
 
-            self.eval_pop_and_choose_new_individual(individuals)
-            self.num_of_truly_exchanged_individuals = 1
-            self.exchanged_individuals = dict()
+            self.choose_new_individual(individuals)
+            self.logger.debug("[EVO] Evolution step finished")
 
         elif self.steps_without_evolution > self.GE_params["MAX_STEPS_WITHOUT_EVOLUTION"]:
             self.logger.debug("[EVO] Reached MAX_STEPS_WITHOUT_EVOLUTION ({}), reinitialising genome (exchanged "
@@ -278,7 +286,8 @@ class EvoAgent(Agent):
             self.steps_without_evolution = 0
 
             individuals = initialisation(size=10, agent=self)  # size of the population = 10
-            self.eval_pop_and_choose_new_individual(individuals)
+            evaluate_fitness(individuals)
+            self.choose_new_individual(individuals)
 
         self.logger.debug("[F] Current fitness: {}".format(self.individual.fitness))
         duration = time.perf_counter()-start_time

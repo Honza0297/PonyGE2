@@ -35,3 +35,6 @@ class pymax(base_ff):
         s = d['XXX_output_XXX']  # this is the program's output: a number.
 
         return s
+
+
+

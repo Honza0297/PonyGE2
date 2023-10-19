@@ -10,7 +10,7 @@ class Individual(object):
     A GE individual.
     """
 
-    def __init__(self, genome, ind_tree, map_ind=True, agent=None):
+    def __init__(self, genome, ind_tree, map_ind=True, params=None):
         """
         Initialise an instance of the individual class (i.e. create a new
         individual).
@@ -21,31 +21,29 @@ class Individual(object):
         :param map_ind: A boolean flag that indicates whether or not an
         individual needs to be mapped.
         """
-        self.agent = agent
+        self.params = params
 
         if map_ind:
             # The individual needs to be mapped from the given input
             # parameters.
-            if self.agent.GE_params["ATTRIBUTE_GRAMMAR"]:
+            if self.params["ATTRIBUTE_GRAMMAR"]:
                 self.phenotype, self.genome, self.code_tree, self.nodes, self.invalid, \
-                    self.depth, self.used_codons = mapper(genome, ind_tree, agent=agent)
+                    self.depth, self.used_codons = mapper(genome, ind_tree, params=self.params)
             else:
                 self.phenotype, self.genome, self.code_tree, self.nodes, self.invalid, \
-                    self.depth, self.used_codons = mapper(genome, ind_tree, agent=agent)
+                    self.depth, self.used_codons = mapper(genome, ind_tree, params=self.params)
 
         else:
             # The individual does not need to be mapped.
             self.genome, self.code_tree = genome, ind_tree
             self.invalid = False
 
-        self.fitness = self.agent.GE_params['FITNESS_FUNCTION'].default_fitness
+        self.fitness = self.params['FITNESS_FUNCTION'].default_fitness
         self.runtime_error = False
         self.name = None
 
-
     def perform_attribute_check(self):
-        if self.agent.GE_params["ATTRIBUTE_GRAMMAR"]:
-            #self.make_code_tree()
+        if self.params["ATTRIBUTE_GRAMMAR"]:
             self.code_tree.run()
             self.check_attribute_validity()
 
@@ -68,7 +66,7 @@ class Individual(object):
         elif np.isnan(other.fitness):
             return False
         else:
-            return self.fitness < other.fitness if self.agent.GE_params[
+            return self.fitness < other.fitness if self.params[
                 'FITNESS_FUNCTION'].maximise else other.fitness < self.fitness
 
     def __le__(self, other):
@@ -90,7 +88,7 @@ class Individual(object):
         elif np.isnan(other.fitness):
             return False
         else:
-            return self.fitness <= other.fitness if self.agent.GE_params[
+            return self.fitness <= other.fitness if self.params[
                 'FITNESS_FUNCTION'].maximise else other.fitness <= self.fitness
 
     def __str__(self):
@@ -103,17 +101,11 @@ class Individual(object):
         return ("Individual: " +
                 str(self.phenotype) + "; " + str(self.fitness))
 
-    def make_code_tree(self):
-        self.code_tree = CodeTree(tree=self.code_tree, parent=None, agent=self.agent)
-        self.code_tree.build()
-
     def check_attribute_validity(self):
         try:
             self.invalid = self.code_tree.invalid or self.invalid
         except AttributeError:
             self.invalid = self.code_tree.invalid
-
-
 
     def deep_copy(self):
         """
@@ -122,7 +114,7 @@ class Individual(object):
         :return: A unique copy of the individual.
         """
 
-        if not self.agent.GE_params['GENOME_OPERATIONS']:
+        if not self.params['GENOME_OPERATIONS']:
             # Create a new unique copy of the tree.
             new_tree = self.code_tree.__copy__(None)
 
@@ -130,7 +122,7 @@ class Individual(object):
             new_tree = None
 
         # Create a copy of self by initialising a new individual.
-        new_ind = Individual(self.genome.copy(), new_tree, map_ind=False, agent=self.agent)
+        new_ind = Individual(self.genome.copy(), new_tree, map_ind=False, params=self.params)
 
         # Set new individual parameters (no need to map genome to new
         # individual).
@@ -139,7 +131,7 @@ class Individual(object):
         new_ind.used_codons = self.used_codons
         new_ind.runtime_error = self.runtime_error
 
-        if self.agent.GE_params["ATTRIBUTE_GRAMMAR"] and self.code_tree:
+        if self.params["ATTRIBUTE_GRAMMAR"] and self.code_tree:
             new_ind.code_tree = self.code_tree.__copy__(None) #copy.deepcopy(self.code_tree)
 
         return new_ind
@@ -156,7 +148,7 @@ class Individual(object):
         """
 
         # Evaluate fitness using specified fitness function.
-        self.fitness = self.agent.GE_params['FITNESS_FUNCTION'](self)
+        self.fitness = self.params['FITNESS_FUNCTION'](self)
 
-        if self.agent.GE_params['MULTICORE']:
+        if self.params['MULTICORE']:
             return self

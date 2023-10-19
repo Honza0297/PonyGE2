@@ -3,17 +3,17 @@ from re import finditer, match
 
 
 class CodeTree(object):
-    def __init__(self, tree=None, parent=None, lhs=None, agent=None, root=None):
-        self.agent = agent
+    def __init__(self, tree=None, parent=None, lhs=None, params=None, root=None):
+        self.params = params
 
         self.invalid = False
         self.tree = tree
         self.lhs = lhs
         self.rhs = list()
-        self.root = root # lhs name
+        self.root = root  # lhs nonterminal name
         self.children = list()
 
-        self.raw_code = None
+        # self.raw_code = None
         self.code = list()
 
         self.parent = parent
@@ -22,19 +22,19 @@ class CodeTree(object):
         self.symbol_table = {}
 
     def build(self):
-        self.raw_code = self.tree.raw_code
+        #s elf.raw_code = self.tree.raw_code
         if not self.lhs:
             self.lhs = self.set_nonterminal(self.tree.root, self.symbol_table[self.tree.root])
         self.rhs = [self.set_nonterminal(node.root, self.symbol_table[node.root]) if node.root in self.symbol_table.keys() else self.set_terminal(node.root) for node in self.tree.children]
         self.set_aliases()
         for tree_child, rhs_child in zip(self.tree.children, self.rhs):
-            self.children.append(CodeTree(tree_child, self, rhs_child, agent=self.agent))
-        self.parse_code()
+            self.children.append(CodeTree(tree_child, self, rhs_child, params=self.params))
+        #self.parse_code()
         for child in self.children:
             child.build()
 
-    def build_node(self, nt_name, raw_code, rhs_sequence, processed_code=None):
-        self.raw_code = raw_code
+    def build_node(self, nt_name, rhs_sequence, raw_code=None, processed_code=None):
+        self.code = processed_code
         if not self.symbol_table:
             if not self.parent:
                 self.make_symbol_table()
@@ -49,15 +49,15 @@ class CodeTree(object):
             else:
                 self.rhs.append(self.set_terminal(name))
         self.set_aliases()
-        if processed_code:
-            self.code = processed_code
-        else:
-            self.parse_code()
+        #if processed_code:
+        #    self.code = processed_code
+        #else:
+        #    self.parse_code()
 
     def set_nonterminal(self, name, attributes=None):
         nonterminal = {"attributes": {}, "name": name}
-        if not attributes and name in self.agent.GE_params["BNF_GRAMMAR"].non_terminals.keys():
-            for attribute in self.agent.GE_params["BNF_GRAMMAR"].non_terminals[name]["attributes"].keys():
+        if not attributes and name in self.params["BNF_GRAMMAR"].non_terminals.keys():
+            for attribute in self.params["BNF_GRAMMAR"].non_terminals[name]["attributes"].keys():
                 nonterminal["attributes"][attribute] = {"type": None, "value": None}
         else:
             for attribute in attributes:  # need to make a deep copy
@@ -70,7 +70,7 @@ class CodeTree(object):
     def __str__(self):
         return str(self.root) + " -> " + str(self.rhs)
 
-    def parse_code(self):
+    """def parse_code(self):
         if not self.raw_code:
             return
         template = "self.aliases[\"{}\"][\"attributes\"][\"{}\"][\"value\"]"
@@ -93,11 +93,11 @@ class CodeTree(object):
                 elif ntas.group("subrule"):
                     nt, attr = ntas.group("subrule").split(".")
                     tmp_line.append(template.format(nt, attr))
-            self.code.append(tmp_line)
+            self.code.append(tmp_line)"""
 
     def set_aliases(self):
-        if not self.raw_code:
-            return
+        #if not self.raw_code:
+        #    return
             # Set proper aliases
             # for example: in rule <S> ::= <S><A> we need to distinguish between first and second <S>
             # in attribute code, it is done by giving them and index: <S_1>, <S_2> etc., while <A> wont be changed
@@ -130,9 +130,9 @@ class CodeTree(object):
             self.aliases[aliases[i]] = nonterminals[i]
 
     def make_symbol_table(self):
-        tmp = self.agent.GE_params["BNF_GRAMMAR"].non_terminals
+        tmp = self.params["BNF_GRAMMAR"].non_terminals
         nts = dict()
-        filename = "../grammars/"+self.agent.GE_params["GRAMMAR_FILE"] + ".symbols"
+        filename = "../grammars/"+self.params["GRAMMAR_FILE"] + ".symbols"
         with open(filename, "r") as f:
             blocks = f.read().split("---")
             for block in blocks:
@@ -155,6 +155,8 @@ class CodeTree(object):
         ntas_regex = 'self\.aliases\[\"\<[a-zA-Z1-9_]+\>\"\]\[\"attributes\"]\[\"[a-z_1-9]+\"\]\[\"value\"\]'
         run_children = False
         children_ran = False
+        if not self.code:
+            return
         for code_line in self.code:
             # dummy = "".join(code_line)
             nt, attribute = None, None
@@ -244,7 +246,7 @@ class CodeTree(object):
 
     def __copy__(self, parent):
         lhs_copy = self.set_nonterminal(self.root) if len(self.lhs.keys()) > 1 else self.set_terminal(self.root)
-        tree_copy = CodeTree(root=self.root, lhs=lhs_copy, parent=parent, agent=self.agent)
+        tree_copy = CodeTree(root=self.root, lhs=lhs_copy, parent=parent, params=self.params)
 
         if not self.parent:
             symbol_table_copy = {}
@@ -255,7 +257,7 @@ class CodeTree(object):
                 symbol_table_copy[nt] = attributes
             tree_copy.symbol_table = symbol_table_copy
         rhs_seq = (symbol["name"] for symbol in self.rhs)
-        tree_copy.build_node(nt_name=self.root, raw_code=self.raw_code, rhs_sequence=rhs_seq, processed_code=self.code)
+        tree_copy.build_node(nt_name=self.root, rhs_sequence=rhs_seq, processed_code=self.code)
 
         for child in self.children:
             # Recurse through all children.
@@ -268,8 +270,7 @@ class CodeTree(object):
 
 
 class Terminal(object):
-    def __init__(self, name="", agent=None):
-        self.agent = agent
+    def __init__(self, name=""):
         self.name = name
 
     def __str__(self):
@@ -279,14 +280,13 @@ class Terminal(object):
         return str(self.name)
 
 
-
 class NonTerminal(object):
-    def __init__(self, name="", attributes=None, agent=None):
-        self.agent = agent
+    def __init__(self, name="", attributes=None, params=None):
+        self.params = params
         self.name = name
         self.attributes = {}
-        if not attributes and name in self.agent.GE_params["BNF_GRAMMAR"].non_terminals.keys():
-            for attribute in self.agent.GE_params["BNF_GRAMMAR"].non_terminals[name]["attributes"].keys():
+        if not attributes and name in self.params["BNF_GRAMMAR"].non_terminals.keys():
+            for attribute in self.params["BNF_GRAMMAR"].non_terminals[name]["attributes"].keys():
                 self.attributes[attribute] = {"type": None, "value": None}
         else:
             for attribute in attributes:  # need to make a deep copy

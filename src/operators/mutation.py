@@ -85,7 +85,7 @@ def int_flip_per_codon(ind, agent=None):
             ind.genome[i] = randint(0, agent.GE_params['CODON_SIZE'])
 
     # Re-build a new individual with the newly mutated genetic information.
-    new_ind = individual.Individual(ind.genome, None, agent=agent)
+    new_ind = individual.Individual(ind.genome, None, params=agent.GE_params)
 
     return new_ind
 

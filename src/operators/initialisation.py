@@ -12,18 +12,16 @@ from scripts import GE_LR_parser
 from utilities.representation.python_filter import python_filter
 
 
-def initialisation(size, agent=None):
+def initialisation(size, params):
     """
     Perform selection on a population in order to select a population of
     individuals for variation.
     
     :param size: The size of the required population.
-    :param agent: if GE is used in multiple instances (eg. in MAS/swarm application), use local parameters provided by the agent
+    :param params: if GE is used in multiple instances (eg. in MAS/swarm application), use local parameters provided by the agent
     :return: A full population generated using the specified initialisation
     technique.
     """
-    if agent:
-        params = agent.GE_params
 
     # Decrease initialised population size by the number of seed individuals
     # (if any) to ensure that the total initial population size does not exceed
@@ -31,7 +29,7 @@ def initialisation(size, agent=None):
     size -= len(params['SEED_INDIVIDUALS'])
 
     # Initialise empty population.
-    individuals = params['INITIALISATION'](size, agent=agent)
+    individuals = params['INITIALISATION'](size, params)
 
     # Add seed individuals (if any) to current population.
     individuals.extend(params['SEED_INDIVIDUALS'])
@@ -39,7 +37,7 @@ def initialisation(size, agent=None):
     return individuals
 
 
-def sample_genome():
+def sample_genome(params):
     """
     Generate a random genome, uniformly.
     
@@ -50,7 +48,7 @@ def sample_genome():
     return genome
 
 
-def uniform_genome(size):
+def uniform_genome(size, params):
     """
     Create a population of individuals by sampling genomes uniformly.
 
@@ -58,7 +56,7 @@ def uniform_genome(size):
     :return: A full population composed of randomly generated individuals.
     """
 
-    return [individual.Individual(sample_genome(), None) for _ in range(size)]
+    return [individual.Individual(genome=sample_genome(params), ind_tree=None, params=params) for _ in range(size)]
 
 
 def uniform_tree(size, agent=None):

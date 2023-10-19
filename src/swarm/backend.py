@@ -110,9 +110,9 @@ class TestBackend(Backend):
         sys.exit(0)
 
     def run_wrapper(self):
-        cnt = 0
+        cnt = 1
         self.setup()
-        self.logger.debug("NUmber of agents: {}".format(len(self.agents)))
+        self.logger.debug("Number of agents: {}".format(len(self.agents)))
         while True:
             if not self.stop:
                 if self.step:

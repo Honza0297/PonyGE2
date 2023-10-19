@@ -273,12 +273,38 @@ class Grammar(object):
 
                 # Add attributes and code parts to the apropriate places
                 if self.agent.GE_params["ATTRIBUTE_GRAMMAR"]:
+                    def parse_code(raw_code):
+                        if not raw_code:
+                            return None
+                        code = []
+                        template = "self.aliases[\"{}\"][\"attributes\"][\"{}\"][\"value\"]"
+                        for line in raw_code.splitlines():
+                            line = line.strip()
+                            if not line:
+                                continue
+                            nt_and_attr_regex = r'\ *([\r\n]+)\ *|([^\'"<\r\n]+)|\'(.*?)\'|\"(.*?)\"|(?P<subrule><[^>|\s]+>\.[A-Za-z1-9_]+)|([<]+)'
+                            tmp_line = list()
+                            for ntas in finditer(nt_and_attr_regex, line):
+                                # noinspection DuplicatedCode
+                                if not ntas.group("subrule"):
+                                    if ntas.group(0).strip():  # ntas is not empty
+                                        tmp_ntas = ntas.group(0).strip()
+                                        if "ok()" in ntas.group(0):
+                                            tmp_ntas = tmp_ntas.replace("ok()", "self.ok()")
+                                        if "error()" in ntas.group(0):
+                                            tmp_ntas = tmp_ntas.replace("error()", "self.error()")
+                                        tmp_line.append(tmp_ntas)
+                                elif ntas.group("subrule"):
+                                    nt, attr = ntas.group("subrule").split(".")
+                                    tmp_line.append(template.format(nt, attr))
+                            code.append(tuple(tmp_line))
+                        return code
+
                     index = 0
                     # for every code block in the rule
                     for attr_code_block in finditer(self.productionregex, rule.group("attr_code"), MULTILINE):
                         # add the whole code block (with parenttheses) to a corresponding choice
-                        self.rules[rule.group('rulename')]["choices"][index]["attr_code"] = \
-                            attr_code_block.group(0)
+                        self.rules[rule.group('rulename')]["choices"][index]["attr_code"] = parse_code(attr_code_block.group(0)[1:-1])
                         index += 1
                         for NT in finditer(self.attrcoderegex, attr_code_block.group(0)):
                             NT_name = NT.group(0).split(".")[0].split("_")[0].split(">")[0] + ">"

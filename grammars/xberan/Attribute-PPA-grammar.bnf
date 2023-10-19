@@ -18,6 +18,7 @@
         <root>.is_able_to_drop_food = <selector>.is_able_to_drop_food
         error() if not <root>.is_able_to_move or not <root>.is_able_to_pick_food or not <root>.is_able_to_drop_food else ok()
     }
+
 <sequence> ::= [Sequence]<ppa>[/Sequence] | [Sequence]<root><root>[/Sequence] | [Sequence]<sequence><root>[/Sequence]
     {
         <sequence>.is_able_to_move = <ppa>.is_able_to_move
@@ -34,6 +35,7 @@
         <sequence_1>.is_able_to_pick_food = <sequence_2>.is_able_to_pick_food or <root>.is_able_to_pick_food
         <sequence_1>.is_able_to_drop_food = <sequence_2>.is_able_to_drop_food or <root>.is_able_to_drop_food
     }
+
 <selector> ::= [Selector]<ppa>[/Selector] | [Selector]<root><root>[/Selector] | [Selector]<selector><root>[/Selector]
     {
         <selector>.is_able_to_move = <ppa>.is_able_to_move
@@ -71,9 +73,11 @@
 <postcondition> ::= <postcondition>[PostCnd]<postconditiont>[/PostCnd] | [PostCnd]<postconditiont>[/PostCnd]
     {}
     |{}
+
 <postconditiont> ::= NeighbourObjects_<objects> | IsCarrying_<dobjects>
     {}
     |{}
+
 <ppasequence> ::= [Sequence] <preconditions> [Act]<action>[/Act] [/Sequence]
 {   
     <ppasequence>.is_able_to_move = <action>.is_able_to_move
@@ -83,9 +87,11 @@
 
 <preconditions> ::= [Sequence]<precondition>[/Sequence]
     {}
+
 <precondition> ::= <precondition>[PreCnd]<preconditiont>[/PreCnd] | [PreCnd]<preconditiont>[/PreCnd]
     {}
     |{}
+
 <preconditiont> ::= CanCarry_<dobjects> | CanDrop_<dobjects> | NeighbourObjects_<objects> | NeighbourObjects_<objects>_invert | IsCarrying_<dobjects> | IsCarrying_<dobjects>_invert
     {}
     |{}
@@ -93,6 +99,7 @@
     |{}
     |{}
     |{}
+
 <action> ::= GoTo_<objects> | PPARandomWalk | PPAPickUp_<dobjects> | PPADrop_<dobjects>
     {
         <action>.is_able_to_move = True
@@ -106,6 +113,7 @@
     |{
         <action>.is_able_to_drop_food = True if <dobjects>.item_type == "food" else False
     }
+
 <objects> ::= <sobjects> | <dobjects>
     {
         <objects>.item_type = <sobjects>.item_type
@@ -118,6 +126,7 @@
      {
         <sobjects>.item_type = "hub"
      }
+
 <dobjects> ::= Food
     {
         <dobjects>.item_type = "food"

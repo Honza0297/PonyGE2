@@ -42,12 +42,11 @@ if __name__ == '__main__':
     agents = list()
     for i in range(NUM_OF_AGENS):
 
-        agent = EvoAgent("agent" + str(i), sense_radius=10, genome_storage_threshold=7, init_genome=GENOME, params_file=PARAM_FILE)
+        agent = EvoAgent("agent" + str(i), sense_radius=10, genome_storage_threshold=7, init_genome=None, params_file=PARAM_FILE)
 
         agents.append(agent)
 
         backend.register_agent(agents[-1])
     backend.start()
-    #cProfile.run("backend.start()", "backend_stats")
 
     sys.exit(app.exec())
