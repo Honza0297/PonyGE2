@@ -3,8 +3,8 @@ from re import finditer, match
 
 
 class CodeTree(object):
-    def __init__(self, tree=None, parent=None, lhs=None, params=None, root=None):
-        self.params = params
+    def __init__(self, tree=None, parent=None, lhs=None, agent=None, root=None):
+        self.agent=agent
 
         self.invalid = False
         self.tree = tree
@@ -28,7 +28,7 @@ class CodeTree(object):
         self.rhs = [self.set_nonterminal(node.root, self.symbol_table[node.root]) if node.root in self.symbol_table.keys() else self.set_terminal(node.root) for node in self.tree.children]
         self.set_aliases()
         for tree_child, rhs_child in zip(self.tree.children, self.rhs):
-            self.children.append(CodeTree(tree_child, self, rhs_child, params=self.params))
+            self.children.append(CodeTree(tree_child, self, rhs_child, agent=self.agent))
         #self.parse_code()
         for child in self.children:
             child.build()
@@ -56,8 +56,8 @@ class CodeTree(object):
 
     def set_nonterminal(self, name, attributes=None):
         nonterminal = {"attributes": {}, "name": name}
-        if not attributes and name in self.params["BNF_GRAMMAR"].non_terminals.keys():
-            for attribute in self.params["BNF_GRAMMAR"].non_terminals[name]["attributes"].keys():
+        if not attributes and name in self.agent.GE_params["BNF_GRAMMAR"].non_terminals.keys():
+            for attribute in self.agent.GE_params["BNF_GRAMMAR"].non_terminals[name]["attributes"].keys():
                 nonterminal["attributes"][attribute] = {"type": None, "value": None}
         else:
             for attribute in attributes:  # need to make a deep copy
@@ -130,9 +130,9 @@ class CodeTree(object):
             self.aliases[aliases[i]] = nonterminals[i]
 
     def make_symbol_table(self):
-        tmp = self.params["BNF_GRAMMAR"].non_terminals
+        tmp = self.agent.GE_params["BNF_GRAMMAR"].non_terminals
         nts = dict()
-        filename = "../grammars/"+self.params["GRAMMAR_FILE"] + ".symbols"
+        filename = "../grammars/"+self.agent.GE_params["GRAMMAR_FILE"] + ".symbols"
         with open(filename, "r") as f:
             blocks = f.read().split("---")
             for block in blocks:
@@ -246,7 +246,7 @@ class CodeTree(object):
 
     def __copy__(self, parent):
         lhs_copy = self.set_nonterminal(self.root) if len(self.lhs.keys()) > 1 else self.set_terminal(self.root)
-        tree_copy = CodeTree(root=self.root, lhs=lhs_copy, parent=parent, params=self.params)
+        tree_copy = CodeTree(root=self.root, lhs=lhs_copy, parent=parent, agent=self.agent)
 
         if not self.parent:
             symbol_table_copy = {}
@@ -281,12 +281,12 @@ class Terminal(object):
 
 
 class NonTerminal(object):
-    def __init__(self, name="", attributes=None, params=None):
-        self.params = params
+    def __init__(self, name="", attributes=None, agent=None):
+        self.agent = agent
         self.name = name
         self.attributes = {}
-        if not attributes and name in self.params["BNF_GRAMMAR"].non_terminals.keys():
-            for attribute in self.params["BNF_GRAMMAR"].non_terminals[name]["attributes"].keys():
+        if not attributes and name in self.agent.GE_params["BNF_GRAMMAR"].non_terminals.keys():
+            for attribute in self.agent.GE_params["BNF_GRAMMAR"].non_terminals[name]["attributes"].keys():
                 self.attributes[attribute] = {"type": None, "value": None}
         else:
             for attribute in attributes:  # need to make a deep copy

@@ -1,3 +1,5 @@
+import sys
+
 from PyQt5 import QtCore
 from PyQt5.QtCore import pyqtSignal
 from PyQt5.QtGui import *
@@ -32,6 +34,7 @@ class QBoard(QWidget):
         # reference to the tiles to be able to modify them
         self.tiles = tiles
         self.setLayout(grid)
+
 
 class QTile(QWidget):
     def __init__(self, parent, position):
@@ -79,26 +82,29 @@ class QTile(QWidget):
             painter.end()
 
 
-
 class SimulationWindow(QMainWindow):
 
     signal_add_hole = pyqtSignal(tuple)
     signal_step = pyqtSignal()
     signal_run = pyqtSignal()
     signal_stop = pyqtSignal()
+    signal_end = pyqtSignal()
 
     signal_update = pyqtSignal(BoardModel)
 
     def __init__(self, dimension):
         super().__init__()
+        self.board = None
         self.setStyleSheet("background-color: darkGray;")
         self.setWindowTitle('Simulation')
-        layout = QHBoxLayout()
+
+        self.layout = QHBoxLayout()
         self.board = QBoard(dimension=dimension)
-        layout.addWidget(self.board)
-        layout.addWidget(self.prepare_controls())
+        #self.reset_board(dimension)
+        self.layout.addWidget(self.board)
+        self.layout.addWidget(self.prepare_controls())
         mainWidget = QWidget()
-        mainWidget.setLayout(layout)
+        mainWidget.setLayout(self.layout)
         self.setCentralWidget(mainWidget)
         self.dimension = dimension
         #signals from GUI
@@ -114,6 +120,12 @@ class SimulationWindow(QMainWindow):
     def register_backend(self, backend):
         self.backend = backend
 
+    def reset_board(self, dimension):
+        for r in range(dimension):
+            for c in range(dimension):
+                self.board.tiles[r][c].set_color(QtCore.Qt.white)
+
+
     def _update(self, board_model):
         for r in range(self.dimension):
             for c in range(self.dimension):
@@ -122,6 +134,7 @@ class SimulationWindow(QMainWindow):
                     self.board.tiles[r][c].set_image(tile_model.image, tile_model.type)
                 if tile_model.background:
                     self.board.tiles[r][c].set_color(tile_model.background)
+    pass
                 # TODO here update all the GUI-related thingies for tiles - primarily their color/background and images
 
     def prepare_controls(self):
@@ -154,9 +167,6 @@ class SimulationWindow(QMainWindow):
 
 
 
-        """run link between backend and frontend"""
-
-
         run_butt.clicked.connect(run)
         run_butt.setMaximumWidth(200)
 
@@ -174,11 +184,36 @@ class SimulationWindow(QMainWindow):
         stop_butt.setEnabled(False)
         stop_butt.setMaximumWidth(200)
 
+        end_butt = QPushButton("End simulation")
+        def end():
+            self.backend.end = True
+            self.signal_end.emit()
+            dlg = QMessageBox(self)
+            dlg.setWindowTitle("Info")
+            dlg.setText("Simulation ended, please close the window.")
+            dlg.exec()
+
+        end_butt.clicked.connect(end)
+        end_butt.setEnabled(True)
+        end_butt.setMaximumWidth(200)
+
+        restart_butt = QPushButton("End current and restart")
+
+        def restart():
+            self.backend.restart = True
+
+
+        restart_butt.clicked.connect(restart)
+        restart_butt.setEnabled(True)
+        restart_butt.setMaximumWidth(200)
+
+
+
         stepping_layout.addWidget(step_butt, 0, 0)
         stepping_layout.addWidget(run_butt, 1, 0)
         stepping_layout.addWidget(stop_butt, 2, 0)
-
-
+        stepping_layout.addWidget(end_butt, 3, 0)
+        stepping_layout.addWidget(restart_butt, 4,0)
 
         cpl = QVBoxLayout()
         cpl.addLayout(stepping_layout)

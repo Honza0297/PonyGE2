@@ -2,15 +2,36 @@ import py_trees
 from py_trees.composites import Sequence, Selector
 import random
 from src.swarm.math import *
-#import src.swarm.packets
+from math import asin, sqrt, degrees
 from src.swarm.models import TileModel
-from src.swarm.types import ObjectType
-#from src.swarm.agent import Agent
+from src.swarm.types import ObjectType, Direction
 from py_trees.decorators import Inverter
 
 
 # TODO: keys na blackboardu dat jako typy do types.py
-# TODO: make agent memoryful - classes Memorize/Forget/Remember
+class IsVisitedBefore(py_trees.behaviour.Behaviour):
+    def __init__(self, name):
+        super(IsVisitedBefore, self).__init__(name)
+
+    def setup(self, agent, item=None, item_type=None) -> None:
+        self.agent = agent
+        self.item_type = item_type
+
+    def initialise(self):
+        pass
+
+    def update(self):
+        status = py_trees.common.Status.FAILURE
+
+        if self.agent.places_visited[self.item_type]:
+            status = py_trees.common.Status.SUCCESS
+
+        return status
+
+    def terminate(self, new_status):
+        pass
+
+
 class ObjectAtDist(py_trees.behaviour.Behaviour):
     """
     Checks if there are objects of the given type in the given distance.
@@ -21,13 +42,13 @@ class ObjectAtDist(py_trees.behaviour.Behaviour):
     def __init__(self, name):
         super(ObjectAtDist, self).__init__(name)
 
-    def setup(self, agent, obj_type, dist=1) -> None:
+    def setup(self, agent, item=None, item_type=None, dist=1) -> None:
         self.agent = agent
 
-        if type(obj_type) is str:
-            self.obj_type = ObjectType.str2enum(obj_type)
+        if type(item_type) is str:
+            self.item_type = ObjectType.str2enum(item_type)
         else:
-            self.obj_type = obj_type
+            self.item_type = item_type
 
         self.distance = dist
         self.blackboard = py_trees.blackboard.Client(name=self.agent.name, namespace=self.agent.name)
@@ -55,7 +76,7 @@ class ObjectAtDist(py_trees.behaviour.Behaviour):
             # TODO optimize: skip rows too far
             for tile in row:
                 if tile and compute_distance(tile.position, self.agent.position) <= self.distance \
-                        and tile.type == self.obj_type:
+                        and tile.type == self.item_type:
                     tiles_with_object.append(tile)
                     self.logger.debug("DEBUG: found tile of type {} in dist {}".format(tile.type.value, self.distance))
 
@@ -64,14 +85,13 @@ class ObjectAtDist(py_trees.behaviour.Behaviour):
             self.blackboard.set("nearObjects", tiles_with_object, overwrite=True)
             self.logger.debug("SUCCESS, there {} object{} of type {} in distance={}".format(
                 "are" if len(tiles_with_object) > 1 else "is", "s" if len(tiles_with_object) > 1 else "",
-                self.obj_type.value, self.distance))
+                self.item_type.value, self.distance))
         else:
-            self.logger.debug("FAILURE, no object of type {} in distance={}".format(self.obj_type.value,
-                                                                                      self.distance))
+            self.logger.debug("FAILURE, no object of type {} in distance={}".format(self.item_type.value,
+                                                                                    self.distance))
             self.logger.debug("\n{}".format(self.agent.neighbourhood))
         return status
         # copying values out from Neighbourhood() to shorten expressions
-
 
     def terminate(self, new_state):
         pass
@@ -86,10 +106,8 @@ class RandomWalk(py_trees.behaviour.Behaviour):
     def __init__(self, name):
         super(RandomWalk, self).__init__(name)
 
-    def setup(self, agent):
+    def setup(self, agent, item=None, item_type=None):
         self.agent = agent
-        self.axis = 0
-        self.delta = 0
         self.change_prob = 25  # percent
         self.blackboard = py_trees.blackboard.Client(name=self.agent.name, namespace=self.agent.name)
         self.blackboard.register_key(key="goalObject", access=py_trees.common.Access.WRITE)
@@ -101,29 +119,48 @@ class RandomWalk(py_trees.behaviour.Behaviour):
         status = py_trees.common.Status.FAILURE
 
         change_direction = random.randint(1, 100)
-        if change_direction <= self.change_prob:  # with prob = 10 %, change direction of random walk
-            self.axis = random.randint(0, 1)
-            self.delta = random.randint(0, 1) * 2 - 1
-            # self.logger.debug("BT: Axis and delta changed to {}, {}".format(self.axis, self.delta))
+        if change_direction <= self.change_prob:  # with prob = self.change_prob %, change direction of random walk
+            self.agent.heading = random.choice((Direction.UP, Direction.RIGHT, Direction.DOWN, Direction.LEFT))
 
-        new_pos = list(self.agent.position)
-        new_pos[self.axis] += self.delta
-        new_pos_in_neighbourhood = [self.agent.sense_radius, self.agent.sense_radius]
-        new_pos_in_neighbourhood[self.axis] += self.delta
-        # self.logger.debug("BT: New position should be {}".format(new_pos))
+        # set goal as the farthest tile in direct sight (not occupied) in the desired direction
+        goal = None
+        tile = None
+        pos = self.agent.neighbourhood.center
+        match self.agent.heading:
+            case Direction.UP:
+                tile = self.agent.neighbourhood.neighbourhood[pos[0] + 1][pos[1]]  # set init tile
+                while not tile.occupied:
+                    goal = tile  # temp_goal is current tile
+                    pos = goal.position  # change pos (helping var) to the goal pos
+                    tile = self.agent.neighbourhood.neighbourhood[pos[0] + 1][
+                        pos[1]]  # set next tile as tile up from goal
+            case Direction.DOWN:
+                tile = self.agent.neighbourhood.neighbourhood[pos[0] - 1][pos[1]]  # set init tile
+                while not tile.occupied:
+                    goal = tile  # temp_goal is current tile
+                    pos = goal.position  # change pos (helping var) to the goal pos
+                    tile = self.agent.neighbourhood.neighbourhood[pos[0] - 1][
+                        pos[1]]  # set next tile as tile down from goal
+            case Direction.LEFT:
+                tile = self.agent.neighbourhood.neighbourhood[pos[0]][pos[1] - 1]  # set init tile
+                while not tile.occupied:
+                    goal = tile  # temp_goal is current tile
+                    pos = goal.position  # change pos (helping var) to the goal pos
+                    tile = self.agent.neighbourhood.neighbourhood[pos[0]][
+                        pos[1] - 1]  # set next tile as tile left from goal
+            case Direction.RIGHT:
+                tile = self.agent.neighbourhood.neighbourhood[pos[0]][pos[1] + 1]  # set init tile
+                while not tile.occupied:
+                    goal = tile  # temp_goal is current tile
+                    pos = goal.position  # change pos (helping var) to the goal pos
+                    tile = self.agent.neighbourhood.neighbourhood[pos[0]][
+                        pos[1] + 1]  # set next tile as tile down from goal
 
-        if self.agent.neighbourhood.neighbourhood[new_pos_in_neighbourhood[0]][new_pos_in_neighbourhood[1]] \
-                and not self.agent.neighbourhood.neighbourhood[new_pos_in_neighbourhood[0]][
-            new_pos_in_neighbourhood[1]].occupied:
-            self.agent.next_step = new_pos
-            self.logger.debug("SUCCESS, try_to_move from {} to {}".format(self.agent.position, self.agent.next_step))
-            next_tile = self.agent.neighbourhood.neighbourhood[new_pos_in_neighbourhood[0]][new_pos_in_neighbourhood[1]]
-            self.blackboard.set(name="goalObject", value=next_tile, overwrite=True)
+        if goal:  # goal found (i.e. the path is clear)
+            self.blackboard.set(name="goalObject", value=goal, overwrite=True)
             status = py_trees.common.Status.SUCCESS
-        else:  # cannot move for some reason
-            self.axis = random.randint(0, 1)
-            self.delta = random.randint(0, 1) * 2 - 1
-            self.logger.debug("FAILURE, cannot move")
+        else:  # cannot go in desired direction
+            self.agent.heading = random.choice((Direction.UP, Direction.RIGHT, Direction.DOWN, Direction.LEFT))
             status = py_trees.common.Status.FAILURE
 
         return status
@@ -136,13 +173,12 @@ class SetNextStep(py_trees.behaviour.Behaviour):
     def __init__(self, name):
         super(SetNextStep, self).__init__(name)
 
-    def setup(self, agent, item_type):
+    def setup(self, agent, item=None, item_type=None, towards=True):
         self.agent = agent
-        self.item_type = item_type
-        self.nearest_object = None
         self.blackboard = py_trees.blackboard.Client(name=self.agent.name, namespace=self.agent.name)
-        self.blackboard.register_key(key="nearObjects", access=py_trees.common.Access.WRITE)  # todo better name for key
+        # self.blackboard.register_key(key="nearObjects", access=py_trees.common.Access.WRITE)  # todo better name for key
         self.blackboard.register_key(key="goalObject", access=py_trees.common.Access.WRITE)
+        self.towards = towards
 
     def initialise(self):
         pass
@@ -150,44 +186,33 @@ class SetNextStep(py_trees.behaviour.Behaviour):
     def update(self):
         status = py_trees.common.Status.FAILURE
 
-        # self.item is just object type -> wee need to check blackboard
-        if not self.blackboard.exists("nearObjects"):
-            num, tiles_with_object = self.agent.neighbourhood.get(self.item_type)
-            self.blackboard.set("nearObjects", tiles_with_object, overwrite=True)
+        if self.blackboard.exists(name="goalObject"):
+            goal = self.blackboard.get(name="goalObject")
+            self.agent.heading = compute_heading(self.agent.position, goal.position)
 
-        items = self.blackboard.get("nearObjects")
+        if not self.towards:  # in case we want to move AWAY, we just change the desired direction
+            heading = self.agent.heading
+            match heading:
+                case Direction.UP:
+                    heading = Direction.DOWN
+                case Direction.DOWN:
+                    heading = Direction.UP
+                case Direction.RIGHT:
+                    heading = Direction.LEFT
+                case Direction.LEFT:
+                    heading = Direction.RIGHT
+            self.agent.heading = heading
 
-        if not items or items[0].type != self.item_type:
-            self.logger.debug("FAILURE, objects in nearObjects are of type {} instead of {}".format(
-                "NoObject" if not items else items[0].type.value, self.item_type.value))
-            status = py_trees.common.Status.FAILURE
-        else:
-
-            # choose the nearest object if not already chosen (and still present in blackboard)
-            newly_chosen = False
-            if not (self.nearest_object and self.nearest_object in items):
-                newly_chosen = True
-                nearest_objects = list()
-                nearest_dist = self.agent.sense_radius
-                for obj in items:
-                    if compute_distance(self.agent.position, obj.position) == nearest_dist:
-                        nearest_objects.append(obj)
-                    elif compute_distance(self.agent.position, obj.position) < nearest_dist:
-                        nearest_objects = [obj]
-                        nearest_dist = compute_distance(self.agent.position, obj.position)
-                # choose randomly if there are more objects in the same distance
-                self.nearest_object = random.choice(nearest_objects)
-                # self.logger.debug("DEBUG, nearest object of type {} is at {}".format(self.item_type, self.nearest_object.position))
-                self.blackboard.set(name="goalObject", value=self.nearest_object, overwrite=True)
-            # get where to move and set it
-            axis, delta = choose_direction(self.agent.position, self.nearest_object.position)
-            next_step = list(self.agent.position)
-            next_step[axis] += delta
-            self.logger.debug("next_step should be {}".format(next_step))
-            self.agent.next_step = next_step
-            self.logger.debug("SUCCESS, nearest object {} changed, current is {} at position{}".format(
-                "" if newly_chosen else "not", self.nearest_object.type, self.nearest_object.position))
-            status = py_trees.common.Status.SUCCESS
+        self.agent.next_step = list(self.agent.position)
+        match self.agent.heading:
+            case Direction.UP:
+                self.agent.next_step[0] += 1
+            case Direction.DOWN:
+                self.agent.next_step[0] -= 1
+            case Direction.RIGHT:
+                self.agent.next_step[1] += 1
+            case Direction.LEFT:
+                self.agent.next_step[1] -= 1
 
         return status
 
@@ -203,12 +228,11 @@ class Move(py_trees.behaviour.Behaviour):
     def __init__(self, name):
         super(Move, self).__init__(name)
 
-    def setup(self, agent):
+    def setup(self, agent, item=None, item_type=None):
         self.agent = agent
         self.running = False
         self.blackboard = py_trees.blackboard.Client(name=self.agent.name, namespace=self.agent.name)
         self.blackboard.register_key(key="goalObject", access=py_trees.common.Access.READ)
-
 
     def initialise(self):
         pass
@@ -221,7 +245,6 @@ class Move(py_trees.behaviour.Behaviour):
                 "SUCCESS, {} is already at next step {}".format(self.agent.name, self.agent.next_step))
             status = py_trees.common.Status.SUCCESS
         else:
-            #self.agent.request_queue.put(src.swarm.packets.Move(self.agent.name, self.agent.next_step))
             resp = self.agent.backend.move_agent(self.agent, self.agent.position, self.agent.next_step)
             if resp and list(resp.position) == list(self.agent.next_step):
                 # self.agent.position = resp.position
@@ -231,17 +254,14 @@ class Move(py_trees.behaviour.Behaviour):
                 self.agent.set_position(resp.position)
                 self.agent.neighbourhood.valid = False  # we have moved -> neighbourhood is invalid
                 # todo
-
-                goal = self.blackboard.get(name="goalObject")
-                if compute_distance(goal.position, self.agent.position) <= 1:
-                    status = py_trees.common.Status.SUCCESS
-                else:
-                    status = py_trees.common.Status.RUNNING
-
+                status = py_trees.common.Status.SUCCESS
             else:
                 self.logger.debug(
                     "FAILURE, resp.position = {} and agent's next step = {} not the same".format(resp.position,
-                                                                                        self.agent.next_step))
+                                                                                                 self.agent.next_step))
+                self.blackboard.unset(key="goalObject")  # unset goal because cannot move towards it. if error check for existence
+                status = py_trees.common.Status.FAILURE
+
         return status
 
     def terminate(self, new_status):
@@ -255,7 +275,7 @@ class IsCarrying(py_trees.behaviour.Behaviour):
         self.item_type = None
         self.agent = None
 
-    def setup(self, agent, item_type, quantity=1):
+    def setup(self, agent, item=None, item_type=None, quantity=1):
         self.agent = agent
         self.item_type = item_type
         self.quantity = quantity
@@ -284,10 +304,11 @@ class CanCarry(py_trees.behaviour.Behaviour):
     def __init__(self, name):
         super(CanCarry, self).__init__(name)
 
-    def setup(self, agent, item):
+    def setup(self, agent, item=None, item_type=None):
         self.agent = agent
         self.blackboard = py_trees.blackboard.Client(name=self.agent.name, namespace=self.agent.name)
         self.blackboard.register_key(key="goalObject", access=py_trees.common.Access.READ)
+        self.item_type = None
 
     def initialise(self):
         pass
@@ -311,7 +332,7 @@ class IsDroppable(py_trees.behaviour.Behaviour):
     def __init__(self, name):
         super(IsDroppable, self).__init__(name)
 
-    def setup(self, agent, item_type):
+    def setup(self, agent, item=None, item_type=None):
         self.agent = agent
         self.item_type = item_type
 
@@ -331,11 +352,9 @@ class PickUp(py_trees.behaviour.Behaviour):
     def __init__(self, name):
         super(PickUp, self).__init__(name)
 
-    def setup(self, agent, item_type):
+    def setup(self, agent, item=None, item_type=None):
         self.running = False
         self.agent = agent
-
-        item = None
 
         num, cells = self.agent.neighbourhood.get(item_type)
         if num > 0:
@@ -346,6 +365,7 @@ class PickUp(py_trees.behaviour.Behaviour):
 
         if item:
             self.blackboard.set("goalObject", item)
+
     def initialise(self):
         pass
 
@@ -376,7 +396,6 @@ class PickUp(py_trees.behaviour.Behaviour):
 
         return status
 
-
     def terminate(self, new_status):
         pass
 
@@ -385,7 +404,7 @@ class Drop(py_trees.behaviour.Behaviour):
     def __init__(self, name):
         super(Drop, self).__init__(name)
 
-    def setup(self, agent, item_type):
+    def setup(self, agent, item=None, item_type=None):
         self.agent = agent
         self.item_type = item_type
         self.running = False
@@ -410,14 +429,11 @@ class Drop(py_trees.behaviour.Behaviour):
                 self.logger.debug("FAILURE, got response of different type")
                 status = py_trees.common.Status.FAILURE
 
-
-
         # self.logger.debug("Returning status {}".format(status))
         return status
 
     def check_drop_status(self):
         status = py_trees.common.Status.FAILURE
-
 
         return status
 
@@ -429,7 +445,7 @@ class CanDrop(py_trees.behaviour.Behaviour):
     def __init__(self, name):
         super(CanDrop, self).__init__(name)
 
-    def setup(self, agent, item_type):
+    def setup(self, agent, item=None, item_type=None):
         self.agent = agent
         self.item_type = item_type
 
@@ -444,7 +460,7 @@ class CanDrop(py_trees.behaviour.Behaviour):
             self.agent.neighbourhood.neighbourhood[self.agent.sense_radius + 1][self.agent.sense_radius - 1],
             self.agent.neighbourhood.neighbourhood[self.agent.sense_radius - 1][self.agent.sense_radius + 1],
             self.agent.neighbourhood.neighbourhood[self.agent.sense_radius - 1][self.agent.sense_radius - 1]
-            ]
+        ]
         for tile in tiles_next_to:
             if tile and (not tile.occupied or tile.object.type == ObjectType.HUB):
                 self.logger.debug("SUCCESS, can drop somewhere")
@@ -464,9 +480,8 @@ class PPARandomWalk(py_trees.behaviour.Behaviour):
     def __init__(self, name):
         super(PPARandomWalk, self).__init__(name)
 
-    def setup(self, agent):
+    def setup(self, agent, item=None, item_type=None):
         rw = RandomWalk(name="CRW_random_walk")
-        rw.setup(agent)
 
         move = Move(name="CRW_move")
         move.setup(agent)
@@ -491,18 +506,45 @@ class GoTo(py_trees.behaviour.Behaviour):
     def __init__(self, name):
         super(GoTo, self).__init__(name)
 
-    def setup(self, agent, item_type):
+    def setup(self, agent, item=None, item_type=None):
         self.agent = agent
         self.item_type = item_type
 
     def initialise(self):
         set_next_step = SetNextStep("GT_setnextstep")
-        set_next_step.setup(self.agent, self.item_type)
+        set_next_step.setup(self.agent, item_type=self.item_type)
         move = Move("GT_move")
         move.setup(self.agent)
 
         # If we planned move and failed, we should consider setting new plan -> memory = False
         sequence = Sequence("GT_sequence", memory=False)
+        sequence.add_children([set_next_step, move])
+        self.bt = py_trees.trees.BehaviourTree(root=sequence)
+
+    def update(self):
+        self.bt.tick()
+        return self.bt.root.status
+
+    def terminate(self, new_status):
+        pass
+
+
+class GoAway(py_trees.behaviour.Behaviour):
+    def __init__(self, name):
+        super(GoAway, self).__init__(name)
+
+    def setup(self, agent, item=None, item_type=None):
+        self.agent = agent
+        self.item_type = item_type
+
+    def initialise(self):
+        set_next_step = SetNextStep("GA_setnextstep")
+        set_next_step.setup(self.agent, item_type=self.item_type, towards=False)
+        move = Move("GA_move")
+        move.setup(self.agent)
+
+        # If we planned move and failed, we should consider setting new plan -> memory = False
+        sequence = Sequence("GA_sequence", memory=False)
         sequence.add_children([set_next_step, move])
         self.bt = py_trees.trees.BehaviourTree(root=sequence)
 
@@ -523,7 +565,7 @@ class PPADrop(py_trees.behaviour.Behaviour):
     def __init__(self, name):
         super(PPADrop, self).__init__(name)
 
-    def setup(self, agent, item_type):
+    def setup(self, agent, item=None, item_type=None):
         self.agent = agent
         self.item_type = item_type
 
@@ -537,13 +579,13 @@ class PPADrop(py_trees.behaviour.Behaviour):
         sequence = Sequence(name="DRP_sequence", memory=True)
 
         is_dropable = IsDroppable(name="DRP_isdroppable")
-        is_dropable.setup(agent, item_type)
+        is_dropable.setup(agent, item_type=item_type)
 
         can_drop = CanDrop(name="DRP_canDrop")
-        can_drop.setup(agent, item_type)
+        can_drop.setup(agent, item_type=item_type)
 
         actually_drop = Drop(name="DRP_actually_drop")
-        actually_drop.setup(agent, item_type)
+        actually_drop.setup(agent, item_type=item_type)
 
         sequence.add_children([is_dropable, actually_drop])
         selector.add_children([is_dropped, sequence])
@@ -565,7 +607,7 @@ class PPAPickUp(py_trees.behaviour.Behaviour):
     def __init__(self, name):
         super(PPAPickUp, self).__init__(name)
 
-    def setup(self, agent, item_type):
+    def setup(self, agent, item=None, item_type=None):
         self.agent = agent
         self.item_type = item_type
 
@@ -577,13 +619,13 @@ class PPAPickUp(py_trees.behaviour.Behaviour):
         sequence = Sequence(name="PU_sequence", memory=True)
 
         object_next_to = ObjectAtDist(name="PU_obje_next_to_agent")
-        object_next_to.setup(self.agent, self.item_type)
+        object_next_to.setup(self.agent, item_type=self.item_type)
 
         object_carryable = CanCarry(name="PU_cancarry")
-        object_carryable.setup(self.agent, self.item_type)
+        object_carryable.setup(self.agent, item_type=self.item_type)
 
         actually_pickup = PickUp(name="PU_pickup")
-        actually_pickup.setup(self.agent, item_type)
+        actually_pickup.setup(self.agent, item_type=item_type)
 
         sequence.add_children([object_next_to, object_carryable, actually_pickup])
         selector.add_children([already_carrying, sequence])
@@ -605,10 +647,9 @@ class PPAMoveTowards(py_trees.behaviour.Behaviour):
     def __init__(self, name):
         super(PPAMoveTowards, self).__init__(name)
 
-    def setup(self, agent, item_type):
+    def setup(self, agent, item=None, item_type=None):
         self.agent = agent
         self.item_type = item_type
-        pass
 
     def initialise(self):
         # main PPA selector
@@ -616,30 +657,76 @@ class PPAMoveTowards(py_trees.behaviour.Behaviour):
 
         # postcondition
         already_next_to = ObjectAtDist("MT_already_next_to")
-        already_next_to.setup(self.agent, self.item_type, dist=1)  # if objects in dist = 1 -> agent is next to them :)
+        already_next_to.setup(self.agent, item_type=self.item_type,
+                              dist=1)  # if objects in dist = 1 -> agent is next to them :)
 
         # TODO this is a workaround to be able to perform simple "move to food, pick it up, move to base and drop it"
-        already_carrying: IsCarrying
+        """already_carrying: IsCarrying
         if self.item_type == ObjectType.FOOD:
             already_carrying = IsCarrying(name="MT_already_carrying")
-            already_carrying.setup(self.agent, item_type=self.item_type, quantity=1)
+            already_carrying.setup(self.agent, item_type=self.item_type, quantity=1)"""
 
         # PPA sequence
         sequence = Sequence("MT_sequence", memory=True)
 
         # precondition - need to know where to move
         see_item = ObjectAtDist("MT_see_item")
-        see_item.setup(self.agent, self.item_type, dist=self.agent.sense_radius)
+        see_item.setup(self.agent, item_type=self.item_type, dist=self.agent.sense_radius)
 
         # action = go to
         goto = GoTo("MT_GoTo")
-        goto.setup(self.agent, self.item_type)
+        goto.setup(self.agent, item_type=self.item_type)
 
         sequence.add_children([see_item, goto])
         if self.item_type == ObjectType.FOOD:
-            selector.add_children([already_carrying, already_next_to, sequence])
+            #selector.add_children([already_carrying, already_next_to, sequence]) # TODO workaround version from above
+            selector.add_children([already_next_to, sequence])
         else:
             selector.add_children([already_next_to, sequence])
+
+        self.bt = py_trees.trees.BehaviourTree(root=selector)
+
+    def update(self):
+        self.bt.tick()
+
+        return self.bt.root.status
+
+    def terminate(self, new_status):
+        pass
+
+
+class PPAMoveAway(py_trees.behaviour.Behaviour):
+    def __init__(self, name):
+        super(PPAMoveAway, self).__init__(name)
+
+    def setup(self, agent, item=None, item_type=None):
+        self.agent = agent
+        self.item_type = item_type
+
+    def initialise(self):
+        # main PPA selector
+        selector = Selector("MA_selector", memory=False)
+
+        # postcondition
+        already_away = ObjectAtDist("MA_away")
+        already_away.setup(self.agent, item_type=self.item_type, dist=self.agent.sense_radius)
+
+        already_away = Inverter(child=already_away)
+        already_away.setup()
+
+        # PPA sequence
+        sequence = Sequence("MA_sequence", memory=True)
+
+        # precondition - need to know from what to move away
+        see_item = ObjectAtDist("MA_see_item")
+        see_item.setup(self.agent, item_type=self.item_type, dist=self.agent.sense_radius)
+
+        # action = go to TODO odsud dolu dodelat, pottebuju GoAway
+        goaway = GoAway("MA_GoAway")
+        goaway.setup(self.agent, item_type=self.item_type)
+
+        sequence.add_children([see_item, goaway])
+        selector.add_children([already_away, sequence])
 
         self.bt = py_trees.trees.BehaviourTree(root=selector)
 
@@ -662,10 +749,9 @@ class DummyNode(py_trees.behaviour.Behaviour):
         """Initialize."""
         super(DummyNode, self).__init__(name)
 
-    def setup(self, agent, item=None):
+    def setup(self, agent, item=None, item_type=None):
         """Setup."""
         self.agent = agent
-        self.item = item
 
     def initialise(self):
         """Pass."""

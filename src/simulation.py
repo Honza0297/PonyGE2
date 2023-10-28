@@ -31,22 +31,8 @@ if __name__ == '__main__':
     gui = SimulationWindow(BOARD_SIZE)
     backend = TestBackend(gui, deterministic=DETERMINISTIC)
     gui.register_backend(backend)
+    backend.setup_simulation(NUM_OF_AGENS, PARAM_FILE)
 
-    food = [FoodSource("jidlo"+str(random.randint(0, 100)), ObjectType.FOOD, 2) for i in range(8)]
-    hub = Hub("hub", ObjectType.HUB, 4)
-    backend.place_object(hub, [25, 25])
-
-    for f in food:
-        backend.place_object(f, rand=True)
-
-    agents = list()
-    for i in range(NUM_OF_AGENS):
-
-        agent = EvoAgent("agent" + str(i), sense_radius=10, genome_storage_threshold=7, init_genome=None, params_file=PARAM_FILE)
-
-        agents.append(agent)
-
-        backend.register_agent(agents[-1])
     backend.start()
 
     sys.exit(app.exec())

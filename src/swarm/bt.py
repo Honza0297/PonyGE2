@@ -77,24 +77,25 @@ class BTConstruct:
                     method, item = nodeval
                     behavior = eval(method)(method + str(
                         self.agent.backend.random.randint(
-                            100, 200)) + '_' + item+ '_' + root.tag)
+                            100, 200)) + '_' + item + '_' + root.tag)
+                    behavior.setup(agent=self.agent, item_type=item)
                 else:
                     method, item, _ = nodeval
                     behavior = eval(method)(
                         method + str(
                             self.agent.backend.random.randint(
                                 100, 200)) + '_' + item + '_inv' + '_' + root.tag)
+                    behavior.setup(agent=self.agent, item_type=item)
+                    behavior = Inverter(behavior)
+                    behavior.setup()
                 if type(item) is str:
                     item = types.ObjectType.str2enum(item)
-
-                behavior.setup(self.agent, item)
-                #behavior = Inverter(behavior)
 
             else:
                 method = node_text
                 behavior = eval(method)(method + str(
                     self.agent.backend.random.randint(100, 200)))
-                behavior.setup(self.agent)
+                behavior.setup(agent=self.agent)
             return behavior
 
         if len(list(root)) == 0:
@@ -131,7 +132,7 @@ class BTConstruct:
             tree = ET.parse(self.filename)
             self.root = tree.getroot()
         else:
-            print("Cannont create BT. Check the filename or stream")
+            print("Cannot create BT. Check the filename or stream")
             exit()
         # print('root tree', self.root)
         whole_list = self.create_bt(self.root)

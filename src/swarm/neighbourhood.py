@@ -4,7 +4,7 @@ from src.swarm import types
 class Neighbourhood:
     def __init__(self, neighbourhood=None):
         if neighbourhood is None:
-            self.neighbourhood = list() # matrix
+            self.neighbourhood = list()  # matrix
             self.valid = False
             self.radius = 0
             self.center = None
@@ -40,8 +40,8 @@ class Neighbourhood:
         cells_with_object = list()
         for row in self.neighbourhood:
             for cell in row:
-                if cell:
-                    if cell.type == obj_type:
+                if cell and cell.occupied:
+                    if cell.object.type == obj_type:
                         cells_with_object.append(cell)
 
         return len(cells_with_object) > 0, cells_with_object

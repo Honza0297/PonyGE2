@@ -22,13 +22,18 @@ class ObjectType(enum.Enum):
                 retval = ObjectType.AGENT
             case "generic":
                 retval = ObjectType.GENERIC
-            case _ :
+            case _:
                 retval = ObjectType.NOTYPE
 
         return retval
 
-
-
     @staticmethod
     def enum2str(self, item, capitality="First"):
-        raise  NotImplemented()
+        raise NotImplemented()
+
+
+class Direction(enum.Enum):
+    UP = "U"
+    DOWN = "D"
+    LEFT = "L"
+    RIGHT = "R"

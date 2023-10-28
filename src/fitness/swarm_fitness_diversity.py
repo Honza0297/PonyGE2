@@ -33,7 +33,7 @@ class swarm_fitness_diversity(base_ff):
                 sorted_values_sum % behavior_len == 0 and \
                 self.sorted_values[0] == int(
             sorted_values_sum / behavior_len):
-            diversity = 1
+            diversity = 1 # max diversity
         elif self.sorted_keys == self.execution_behaviors and \
                 self.sorted_values[0] <= int(
             sorted_values_sum / behavior_len):
@@ -83,5 +83,5 @@ class swarm_fitness_diversity(base_ff):
                 except KeyError:
                     self.execution[node_text] = 1
                 nodes.append(node_text)
-        fitness = self.calcualte_diversity()
+        fitness = len(nodes)/len(self.execution_behaviors)
         return fitness

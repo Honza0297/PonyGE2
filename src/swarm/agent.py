@@ -8,7 +8,7 @@ from PyQt5 import QtCore
 
 from src.swarm import types
 from src.swarm.neighbourhood import Neighbourhood
-from src.swarm.types import ObjectType
+from src.swarm.types import ObjectType, Direction
 from src.swarm.packets import *
 import src.algorithm.parameters
 from src.operators.initialisation import initialisation
@@ -42,9 +42,9 @@ class Agent:
         self.inventory = list()
         self.dropping_item = None  # item that should be dropped
         self.backend = None
-        self.goal = None
         self.steps = 0
         self.steps_without_evolution = 0
+        self.heading = None
 
         # BT props
         self.bt_wrapper = BTConstruct(None, self)
@@ -151,8 +151,11 @@ class EvoAgent(Agent):
         # Basic
 
         # Simulation
-        self.visited_locations = set()
+        self.position_history = set()
+        # places which agent did visit = was next to it. Reset every time new behavior is adopted
+        self.places_visited = {ObjectType.FOOD: False, ObjectType.HUB: False}
         self.exchange_prob = exchange_prob
+
 
         # BT
 
@@ -189,7 +192,7 @@ class EvoAgent(Agent):
         if self.init_genome:
             individuals = [Individual(genome=self.init_genome, ind_tree=None, agent=self)]
         else:
-            individuals = initialisation(size=self.GE_params["POPULATION_SIZE"], params=self.GE_params)
+            individuals = initialisation(size=self.GE_params["POPULATION_SIZE"], agent=self)
 
         individuals = evaluate_fitness(individuals, self)
         self.choose_new_individual(individuals)
@@ -204,13 +207,16 @@ class EvoAgent(Agent):
             self.logger.debug("[LST_F] List of fitness values: {}.".format(fitnesses))
             self.logger.debug("[AVG_F] Average fitness: {}".format(avg_fitness))
 
-
-        # Assign the genome to the agent
+        #  Assign the genome to the agent
         self.individuals = individuals
         if not self.individual or self.individual.fitness <= self.individuals[0].fitness:
             self.logger.debug("[IND_CHG] Current individual changed (fitness {} -> {})".format(self.individual.fitness if self.individual else "nan", self.individuals[0].fitness))
             self.individual = self.individuals[0]  # first = best
-        self.individual.fitness = 0  # zeoring fitness function
+            self.places_visited = {"food": False, "hub": False}  # Reset memory when new behavior is chosen
+            self.position_history = set()
+        else:
+            self.logger.debug("[IND_CHG] Current individual still the best, not changed.")
+        # self.individual.fitness = 0  # NOTE stopped zeroing initial fitness
 
         # Exchange genome with itself :)
         self.exchanged_individuals = {self.name: self.individual}
@@ -225,14 +231,16 @@ class EvoAgent(Agent):
         # SENSE()
         self.steps += 1
         self.steps_without_evolution += 1
-        self.visited_locations.add(tuple(self.position))
+        self.position_history.add(tuple(self.position))
         self.logger.info("[S{}] Step {}".format(self.steps, self.steps))
+        self.logger.debug("[POS] Position: {}".format(self.position))
         self.logger.debug(
             "[SWE{}] Step without evolution {}".format(self.steps_without_evolution, self.steps_without_evolution))
         self.logger.debug("[F] Current fitness at the start: {}".format(self.individual.fitness))
         # actually sense
         resp = self.backend.sense_object_neighbourhood(self)
         self.neighbourhood.set_neighbourhood(resp.neighbourhood)
+        self.check_locations()
 
         # Try to exchange genomes
         agents_present, neighbouring_agent_cells = self.neighbourhood.get(types.ObjectType.AGENT)
@@ -246,13 +254,12 @@ class EvoAgent(Agent):
 
         # ACT()
         # actually act
+        self.logger.debug("[TREE] Tree: {}".format(py_trees.display.ascii_tree(self.bt_wrapper.behaviour_tree.root)))
         self.bt_wrapper.behaviour_tree.tick()
         self.compute_fitness()
-        self.logger.debug("[TREE] Tree: {}".format(py_trees.display.ascii_tree(self.bt_wrapper.behaviour_tree.root)))
 
         # UPDATE()
 
-        # noinspection PyTypeChecker
         if self.num_of_truly_exchanged_individuals >= self.genotype_storage_threshold:
             self.steps_without_evolution = 0
             self.logger.debug("[EVO] Performing evolution step")
@@ -306,7 +313,7 @@ class EvoAgent(Agent):
                                       "BETA"] * self.individual.fitness + exploration_fitness + BT_feedback_fitness
 
     def compute_exploration_fitness(self):
-        return max(len(self.visited_locations), 0)
+        return max(len(self.position_history), 0)
 
     def compute_BT_feedback_fitness(self):
         all_nodes = list(self.bt_wrapper.behaviour_tree.root.iterate())
@@ -322,3 +329,18 @@ class EvoAgent(Agent):
         postcond_reward = sum([1 for pcond in postcond if pcond.status == py_trees.common.Status.SUCCESS])
 
         return selectors_reward + postcond_reward
+
+    def check_locations(self):
+        center = self.neighbourhood.center
+        if self.neighbourhood.neighbourhood[center[0]+1][center[0]+1] and self.neighbourhood.neighbourhood[center[0]+1][center[0]+1].occupied:
+            self.places_visited[self.neighbourhood.neighbourhood[center[0]][center[0]].object.type] = True
+
+        if self.neighbourhood.neighbourhood[center[0]-1][center[0]+1] and self.neighbourhood.neighbourhood[center[0]-1][center[0]+1].occupied:
+            self.places_visited[self.neighbourhood.neighbourhood[center[0]][center[0]].object.type] = True
+
+        if self.neighbourhood.neighbourhood[center[0]+1][center[0]-1] and self.neighbourhood.neighbourhood[center[0]+1][center[0]-1].occupied:
+            self.places_visited[self.neighbourhood.neighbourhood[center[0]][center[0]].object.type] = True
+
+        if self.neighbourhood.neighbourhood[center[0]-1][center[0]-1] and self.neighbourhood.neighbourhood[center[0]-1][center[0]-1].occupied:
+            self.places_visited[self.neighbourhood.neighbourhood[center[0]][center[0]].object.type] = True
+

@@ -104,7 +104,7 @@ class MoveTowards(py_trees.behaviour.Behaviour):
     def __init__(self, name):
         super(MoveTowards, self).__init__(name)
 
-    def setup(self):
+    def setup(self, agent, item=None, item_type=None, dist=1) -> None:
         pass
 
     def initialise(self):

@@ -5,6 +5,8 @@ import sys
 import time
 import logging
 import threading
+
+from src.swarm.agent import EvoAgent
 from src.swarm.math import compute_distance
 from src.swarm.models import BoardModel, TileModel
 from src.swarm.packets import *
@@ -12,17 +14,20 @@ from src.swarm.objects import *
 from src.swarm.types import ObjectType
 import random
 
+
 class Backend(threading.Thread):
     def __init__(self, gui, level):
         super(Backend, self).__init__()
         self.gui = gui
 
-        self.board_model = BoardModel(gui.dimension)
+        self.board_model = None  # BoardModel(gui.dimension)
         self.agents = list()
         self.random = random
 
         self.step = False
-        self.stop = False# True if wait for buttons, False for autostart
+        self.stop = True  # True if wait for buttons, False for autostart
+        self.end = False  # When comes True, simulation will end
+        self.restart = False
 
         # Logging
         self.logger = logging.getLogger("backend")
@@ -30,7 +35,6 @@ class Backend(threading.Thread):
 
         # Simulation
         # TODO stats: food collected, food dropped, food dropped at base
-
 
     def setup(self):
         if not os.path.exists("../results/{}".format(self.agents[0].GE_params["LOG_FOLDER"])):
@@ -96,6 +100,7 @@ class Backend(threading.Thread):
 class TestBackend(Backend):
     def __init__(self, gui, deterministic=False, level=logging.DEBUG):
         super(TestBackend, self).__init__(gui, level)
+        self.param_file = None
         self.deterministic = deterministic
 
     def setup(self):
@@ -106,14 +111,48 @@ class TestBackend(Backend):
     def run(self):
         #self.run_wrapper()
         cProfile.runctx("self.run_wrapper()", globals(), locals(), "backend_stats_{}".format(time.time()))
+        self.do_final_stats()
         print("End")
         sys.exit(0)
+
+    def setup_simulation(self, num_of_agents, param_file, reset_gui=False):
+        if reset_gui:
+            self.gui.reset_board(self.gui.dimension)
+        self.restart = False
+        self.param_file = param_file
+
+        self.board_model = BoardModel(self.gui.dimension)
+        self.update_gui()
+        food = [FoodSource("jidlo" + str(random.randint(0, 100)), ObjectType.FOOD, 2) for i in range(8)]
+        hub = Hub("hub", ObjectType.HUB, 4)
+        self.place_object(hub, [25, 25])
+
+        for f in food:
+            self.place_object(f, rand=True)
+
+        for i in range(num_of_agents):
+            agent = EvoAgent("agent" + str(i), sense_radius=10, genome_storage_threshold=7, init_genome=None,
+                             params_file=param_file)
+
+            self.register_agent(agent)
+
+    def do_final_stats(self):
+        print("TODO")
+        # TODO final stats
 
     def run_wrapper(self):
         cnt = 1
         self.setup()
         self.logger.debug("Number of agents: {}".format(len(self.agents)))
         while True:
+            if self.end:
+                return
+            if self.restart:
+                self.do_final_stats()
+                num_of_agents = len(self.agents)
+                self.agents = []
+                self.setup_simulation(num_of_agents, self.param_file, reset_gui=True)
+                self.setup()
             if not self.stop:
                 if self.step:
                     self.stop = True
@@ -142,9 +181,9 @@ class TestBackend(Backend):
                     time.sleep(0.2-duration)
                 self.logger.info("---------------------------------------")
                 cnt += 1
-                if cnt > 5:  # TODO oddelat stopku
+                """if cnt > 5:  # TODO oddelat stopku
                     self.stop = True
-                    return
+                    return"""
             else:
                 time.sleep(0.2)
 
