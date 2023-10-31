@@ -31,9 +31,11 @@ from src.swarm.behaviors import ( # noqa 401
     IsCarrying,
     CanDrop,
     CanCarry,
-    GoTo,
+    PPAMoveTowards,
+    PPAMoveAway,
     PPADrop,
-    PPAPickUp
+    PPAPickUp,
+    IsVisitedBefore
 )
 
 from py_trees.decorators import SuccessIsRunning, Inverter
@@ -78,14 +80,14 @@ class BTConstruct:
                     behavior = eval(method)(method + str(
                         self.agent.backend.random.randint(
                             100, 200)) + '_' + item + '_' + root.tag)
-                    behavior.setup(agent=self.agent, item_type=item)
+                    behavior.setup(agent=self.agent, item_type=item.lower())
                 else:
                     method, item, _ = nodeval
                     behavior = eval(method)(
                         method + str(
                             self.agent.backend.random.randint(
                                 100, 200)) + '_' + item + '_inv' + '_' + root.tag)
-                    behavior.setup(agent=self.agent, item_type=item)
+                    behavior.setup(agent=self.agent, item_type=item.lower())
                     behavior = Inverter(behavior)
                     behavior.setup()
                 if type(item) is str:

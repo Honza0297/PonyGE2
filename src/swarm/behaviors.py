@@ -106,9 +106,9 @@ class RandomWalk(py_trees.behaviour.Behaviour):
     def __init__(self, name):
         super(RandomWalk, self).__init__(name)
 
-    def setup(self, agent, item=None, item_type=None):
+    def setup(self, agent, item=None, item_type=None, change_prob=25):
         self.agent = agent
-        self.change_prob = 25  # percent
+        self.change_prob = change_prob  # percent
         self.blackboard = py_trees.blackboard.Client(name=self.agent.name, namespace=self.agent.name)
         self.blackboard.register_key(key="goalObject", access=py_trees.common.Access.WRITE)
 
@@ -124,37 +124,12 @@ class RandomWalk(py_trees.behaviour.Behaviour):
 
         # set goal as the farthest tile in direct sight (not occupied) in the desired direction
         goal = None
-        tile = None
-        pos = self.agent.neighbourhood.center
-        match self.agent.heading:
-            case Direction.UP:
-                tile = self.agent.neighbourhood.neighbourhood[pos[0] + 1][pos[1]]  # set init tile
-                while not tile.occupied:
-                    goal = tile  # temp_goal is current tile
-                    pos = goal.position  # change pos (helping var) to the goal pos
-                    tile = self.agent.neighbourhood.neighbourhood[pos[0] + 1][
-                        pos[1]]  # set next tile as tile up from goal
-            case Direction.DOWN:
-                tile = self.agent.neighbourhood.neighbourhood[pos[0] - 1][pos[1]]  # set init tile
-                while not tile.occupied:
-                    goal = tile  # temp_goal is current tile
-                    pos = goal.position  # change pos (helping var) to the goal pos
-                    tile = self.agent.neighbourhood.neighbourhood[pos[0] - 1][
-                        pos[1]]  # set next tile as tile down from goal
-            case Direction.LEFT:
-                tile = self.agent.neighbourhood.neighbourhood[pos[0]][pos[1] - 1]  # set init tile
-                while not tile.occupied:
-                    goal = tile  # temp_goal is current tile
-                    pos = goal.position  # change pos (helping var) to the goal pos
-                    tile = self.agent.neighbourhood.neighbourhood[pos[0]][
-                        pos[1] - 1]  # set next tile as tile left from goal
-            case Direction.RIGHT:
-                tile = self.agent.neighbourhood.neighbourhood[pos[0]][pos[1] + 1]  # set init tile
-                while not tile.occupied:
-                    goal = tile  # temp_goal is current tile
-                    pos = goal.position  # change pos (helping var) to the goal pos
-                    tile = self.agent.neighbourhood.neighbourhood[pos[0]][
-                        pos[1] + 1]  # set next tile as tile down from goal
+        curr_pos = self.agent.neighbourhood.center
+        tmp_tile = self.agent.neighbourhood.get_next_tile_in_dir(curr_pos, self.agent.heading)
+        while tmp_tile and not tmp_tile.occupied:
+            goal = tmp_tile  # temp_goal is current tile
+            curr_pos = self.agent.neighbourhood.get_relative_pos(goal.position)  # change pos (helping var) to the goal pos
+            tmp_tile = self.agent.neighbourhood.get_next_tile_in_dir(curr_pos, Direction.UP)
 
         if goal:  # goal found (i.e. the path is clear)
             self.blackboard.set(name="goalObject", value=goal, overwrite=True)
@@ -184,7 +159,7 @@ class SetNextStep(py_trees.behaviour.Behaviour):
         pass
 
     def update(self):
-        status = py_trees.common.Status.FAILURE
+        status = py_trees.common.Status.SUCCESS
 
         if self.blackboard.exists(name="goalObject"):
             goal = self.blackboard.get(name="goalObject")
@@ -239,8 +214,9 @@ class Move(py_trees.behaviour.Behaviour):
 
     def update(self):
         status = py_trees.common.Status.FAILURE
-
-        if tuple(self.agent.position) == tuple(self.agent.next_step):
+        if not self.agent.next_step:
+            status = py_trees.common.Status.FAILURE
+        elif tuple(self.agent.position) == tuple(self.agent.next_step):
             self.logger.debug(
                 "SUCCESS, {} is already at next step {}".format(self.agent.name, self.agent.next_step))
             status = py_trees.common.Status.SUCCESS
@@ -482,12 +458,16 @@ class PPARandomWalk(py_trees.behaviour.Behaviour):
 
     def setup(self, agent, item=None, item_type=None):
         rw = RandomWalk(name="CRW_random_walk")
+        rw.setup(agent, item, item_type)
+
+        sns = SetNextStep(name="CRW_next_step")
+        sns.setup(agent)
 
         move = Move(name="CRW_move")
         move.setup(agent)
 
         sequence = Sequence(name="CRW_sequence", memory=True)
-        sequence.add_children([rw, move])
+        sequence.add_children([rw, sns, move])
 
         self.bt = py_trees.trees.BehaviourTree(root=sequence)
 
@@ -495,6 +475,7 @@ class PPARandomWalk(py_trees.behaviour.Behaviour):
         pass
 
     def update(self):
+        print("PPARandomWalk")
         self.bt.tick()
         return self.bt.root.status
 
@@ -687,6 +668,7 @@ class PPAMoveTowards(py_trees.behaviour.Behaviour):
         self.bt = py_trees.trees.BehaviourTree(root=selector)
 
     def update(self):
+        print("PPAMoveTowards")
         self.bt.tick()
 
         return self.bt.root.status
@@ -721,7 +703,6 @@ class PPAMoveAway(py_trees.behaviour.Behaviour):
         see_item = ObjectAtDist("MA_see_item")
         see_item.setup(self.agent, item_type=self.item_type, dist=self.agent.sense_radius)
 
-        # action = go to TODO odsud dolu dodelat, pottebuju GoAway
         goaway = GoAway("MA_GoAway")
         goaway.setup(self.agent, item_type=self.item_type)
 
@@ -731,6 +712,7 @@ class PPAMoveAway(py_trees.behaviour.Behaviour):
         self.bt = py_trees.trees.BehaviourTree(root=selector)
 
     def update(self):
+        print("PPAMoveAway")
         self.bt.tick()
 
         return self.bt.root.status

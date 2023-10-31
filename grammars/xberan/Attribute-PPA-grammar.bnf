@@ -3,6 +3,8 @@
 #- task: grab food and move it to base (?)
 #- postconditions: 
 # Control flow
+# 28-10-2023: Sucessnode can be precondition, but no postcondition. Aadesh did this, but postcond = True means, that action will not be performed anytime
+# 28-10-2023: Fixed PPA tree implementation. now, more sequences in one PPA are possible
 
 <root> ::= <sequence> | <selector>
     {
@@ -19,7 +21,7 @@
         error() if not <root>.is_able_to_move or not <root>.is_able_to_pick_food or not <root>.is_able_to_drop_food else ok()
     }
 
-<sequence> ::= [Sequence]<ppa>[/Sequence] | [Sequence]<root><root>[/Sequence] | [Sequence]<sequence><root>[/Sequence]
+<sequence> ::= [Sequence]<ppa>[/Sequence] | [Sequence]<root><root>[/Sequence] | [Sequence]<sequence><root>[/Sequence] # TODO remove last possibility - duplicit
     {
         <sequence>.is_able_to_move = <ppa>.is_able_to_move
         <sequence>.is_able_to_pick_food = <ppa>.is_able_to_pick_food
@@ -36,7 +38,7 @@
         <sequence_1>.is_able_to_drop_food = <sequence_2>.is_able_to_drop_food or <root>.is_able_to_drop_food
     }
 
-<selector> ::= [Selector]<ppa>[/Selector] | [Selector]<root><root>[/Selector] | [Selector]<selector><root>[/Selector]
+<selector> ::= [Selector]<ppa>[/Selector] | [Selector]<root><root>[/Selector] | [Selector]<selector><root>[/Selector] # TODO remove last possibility - duplicit
     {
         <selector>.is_able_to_move = <ppa>.is_able_to_move
         <selector>.is_able_to_pick_food = <ppa>.is_able_to_pick_food
@@ -52,18 +54,28 @@
         <selector_1>.is_able_to_pick_food = <selector_2>.is_able_to_pick_food or <root>.is_able_to_pick_food
         <selector_1>.is_able_to_drop_food = <selector_2>.is_able_to_drop_food or <root>.is_able_to_drop_food
     }
-<ppa> ::= [Selector]<postconditions><ppasequence>[/Selector]
+<ppa> ::= [Selector]<postconditions><ppasequences>[/Selector]
     {
-        <ppa>.is_able_to_move = <postconditions>.is_able_to_move or <ppasequence>.is_able_to_move
-        <ppa>.is_able_to_pick_food = <postconditions>.is_able_to_pick_food or <ppasequence>.is_able_to_pick_food
-        <ppa>.is_able_to_drop_food = <postconditions>.is_able_to_drop_food or <ppasequence>.is_able_to_drop_food
+        <ppa>.is_able_to_move = <postconditions>.is_able_to_move or <ppasequences>.is_able_to_move
+        <ppa>.is_able_to_pick_food = <postconditions>.is_able_to_pick_food or <ppasequences>.is_able_to_pick_food
+        <ppa>.is_able_to_drop_food = <postconditions>.is_able_to_drop_food or <ppasequences>.is_able_to_drop_food
+    }
+<ppasequences> ::= <ppasequence> | <ppasequence><ppasequences>
+    {
+        <ppasequences>.is_able_to_move = <ppasequence>.is_able_to_move
+        <ppasequences>.is_able_to_pick_food = <ppasequence>.is_able_to_pick_food
+        <ppasequences>.is_able_to_drop_food = <ppasequence>.is_able_to_drop_food
+    }
+    |{
+        <ppasequences_1>.is_able_to_move = <ppasequence>.is_able_to_move or <ppasequences_2>.is_able_to_move
+        <ppasequences_1>.is_able_to_pick_food = <ppasequence>.is_able_to_pick_food or <ppasequences_2>.is_able_to_pick_food
+        <ppasequences_1>.is_able_to_drop_food = <ppasequence>.is_able_to_drop_food or <ppasequences_2>.is_able_to_drop_food
     }
 
 # PPA control flow
 
-<postconditions> ::= <SuccessNode> | <ppa> |[Sequence]<postcondition>[/Sequence] # None | another PPA | some
-    {}
-    |{
+<postconditions> ::= <ppa> | [Sequence]<postcondition>[/Sequence] # another PPA | some
+    {
         <postconditions>.is_able_to_move = <ppa>.is_able_to_move
         <postconditions>.is_able_to_pick_food = <ppa>.is_able_to_pick_food
         <postconditions>.is_able_to_drop_food = <ppa>.is_able_to_drop_food
@@ -74,8 +86,9 @@
     {}
     |{}
 
-<postconditiont> ::= NeighbourObjects_<objects> | IsCarrying_<dobjects>
+<postconditiont> ::= NeighbourObjects_<objects> | IsCarrying_<dobjects> | IsVisitedBefore_<objects>
     {}
+    |{}
     |{}
 
 <ppasequence> ::= [Sequence] <preconditions> [Act]<action>[/Act] [/Sequence]
@@ -85,22 +98,25 @@
     <ppasequence>.is_able_to_drop_food = <action>.is_able_to_drop_food
 }
 
-<preconditions> ::= [Sequence]<precondition>[/Sequence]
+<preconditions> ::= <SuccessNode> | [Sequence]<precondition>[/Sequence]
     {}
+    |{}
 
 <precondition> ::= <precondition>[PreCnd]<preconditiont>[/PreCnd] | [PreCnd]<preconditiont>[/PreCnd]
     {}
     |{}
 
-<preconditiont> ::= CanCarry_<dobjects> | CanDrop_<dobjects> | NeighbourObjects_<objects> | NeighbourObjects_<objects>_invert | IsCarrying_<dobjects> | IsCarrying_<dobjects>_invert
+<preconditiont> ::= CanCarry_<dobjects> | CanDrop_<dobjects> | NeighbourObjects_<objects> | NeighbourObjects_<objects>_invert | IsCarrying_<dobjects> | IsCarrying_<dobjects>_invert | IsVisitedBefore_<objects> | IsVisitedBefore_<objects>_invert
     {}
     |{}
     |{}
     |{}
     |{}
     |{}
+    |{}
+    |{}
 
-<action> ::= GoTo_<objects> | PPARandomWalk | PPAPickUp_<dobjects> | PPADrop_<dobjects>
+<action> ::= PPAMoveTowards_<objects> | PPARandomWalk | PPAPickUp_<dobjects> | PPADrop_<dobjects> | PPAMoveAway_<objects>
     {
         <action>.is_able_to_move = True
     }
@@ -112,6 +128,9 @@
     }
     |{
         <action>.is_able_to_drop_food = True if <dobjects>.item_type == "food" else False
+    }
+    |{
+        <action>.is_able_to_move = True
     }
 
 <objects> ::= <sobjects> | <dobjects>

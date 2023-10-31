@@ -109,8 +109,8 @@ class TestBackend(Backend):
         self.update_gui()
 
     def run(self):
-        #self.run_wrapper()
-        cProfile.runctx("self.run_wrapper()", globals(), locals(), "backend_stats_{}".format(time.time()))
+        self.run_wrapper()
+        # cProfile.runctx("self.run_wrapper()", globals(), locals(), "backend_stats_{}".format(time.time()))
         self.do_final_stats()
         print("End")
         sys.exit(0)
@@ -271,7 +271,9 @@ class TestBackend(Backend):
         if list(old_position) != list(agent.position):
             raise RuntimeError("Agent does not know where it is.")
 
-        if not self.board_model.tiles[new_position[0]][new_position[1]].occupied:
+        if new_position[0] >= self.board_model.dimension or new_position[1] >= self.board_model.dimension:
+            resp.position = agent.position
+        elif not self.board_model.tiles[new_position[0]][new_position[1]].occupied:
             self.board_model.tiles[agent.position[0]][agent.position[1]].remove_object(agent)
             agent_placed = self.board_model.tiles[new_position[0]][new_position[1]].place_object(agent)
             if agent_placed:

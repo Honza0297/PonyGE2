@@ -67,7 +67,7 @@ def compute_heading(pos_start, pos_goal):
     45-134: UP
     135-224: LEFT
     225-314: DOWN
-    314-404*: RUGHT
+    314-404*: RIGHT
     404%360 = 44
     """
     if 45 <= angle <= 134:

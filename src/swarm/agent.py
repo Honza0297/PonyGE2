@@ -1,24 +1,19 @@
 import os
 import random
-import sys
 import logging
 import time
 import py_trees
 from PyQt5 import QtCore
 
-from src.swarm import types
 from src.swarm.neighbourhood import Neighbourhood
-from src.swarm.types import ObjectType, Direction
+from src.swarm.types import ObjectType
 from src.swarm.packets import *
 import src.algorithm.parameters
 from src.operators.initialisation import initialisation
 from src.fitness.evaluation import evaluate_fitness
-from src.fitness.swarm_fitness_diversity import \
-    swarm_fitness_diversity  # noqa 401 note: if changed fitness, here import!
 from src.operators.selection import selection
 from src.operators.crossover import crossover
 from src.operators.mutation import mutation
-from src.algorithm.mapper import mapper
 from src.operators.replacement import replacement
 from src.swarm.bt import BTConstruct
 from src.swarm.default_params import default_params
@@ -200,12 +195,16 @@ class EvoAgent(Agent):
     def choose_new_individual(self, individuals):
         individuals.sort(reverse=True)
 
-        fitnesses = tuple(individual.fitness if individual.fitness else 0 for individual in individuals)
+        fitnesses = tuple(individual.fitness if (not individual.invalid and individual.fitness) else 0 for individual in individuals)
+        non_zero_fitnesses = tuple(i for i in fitnesses if i)
         if fitnesses:
             best_fitness = max(fitnesses)
             avg_fitness = sum(fitnesses) / len(fitnesses)
+            avg_nonzero_fitness = 0 if not non_zero_fitnesses else sum(fitnesses) / len(non_zero_fitnesses)
             self.logger.debug("[LST_F] List of fitness values: {}.".format(fitnesses))
-            self.logger.debug("[AVG_F] Average fitness: {}".format(avg_fitness))
+            self.logger.debug("[AVG_F] Average fitness (incl. invalids): {}".format(avg_fitness))
+            self.logger.debug("[AVG_F] Average fitness (excl. invalids): {}".format(avg_nonzero_fitness))
+
 
         #  Assign the genome to the agent
         self.individuals = individuals
@@ -216,7 +215,6 @@ class EvoAgent(Agent):
             self.position_history = set()
         else:
             self.logger.debug("[IND_CHG] Current individual still the best, not changed.")
-        # self.individual.fitness = 0  # NOTE stopped zeroing initial fitness
 
         # Exchange genome with itself :)
         self.exchanged_individuals = {self.name: self.individual}
@@ -243,7 +241,7 @@ class EvoAgent(Agent):
         self.check_locations()
 
         # Try to exchange genomes
-        agents_present, neighbouring_agent_cells = self.neighbourhood.get(types.ObjectType.AGENT)
+        agents_present, neighbouring_agent_cells = self.neighbourhood.get(ObjectType.AGENT)
         if agents_present:
             for cell in neighbouring_agent_cells:
                 if cell.object.name not in self.exchanged_individuals.keys():
@@ -322,7 +320,7 @@ class EvoAgent(Agent):
         )
 
         postcond = list(filter(
-            lambda x: x.name.split('_')[-1] == 'postcond', all_nodes)
+            lambda x: x.name.split('_')[-1] == 'PostCnd', all_nodes)
         )
 
         selectors_reward = sum([1 for sel in selectors if sel.status == py_trees.common.Status.SUCCESS])

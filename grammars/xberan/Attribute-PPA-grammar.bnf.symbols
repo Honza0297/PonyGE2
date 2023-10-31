@@ -28,6 +28,12 @@ is_able_to_pick_food, S, False
 is_able_to_drop_food, S, False
 ---
 
+<ppasequences>
+is_able_to_move, S, False
+is_able_to_pick_food, S, False
+is_able_to_drop_food, S, False
+---
+
 <postconditions>
 is_able_to_move, S, False
 is_able_to_pick_food, S, False

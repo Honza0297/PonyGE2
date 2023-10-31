@@ -21,8 +21,7 @@ import py_trees
 import copy
 from flloat.parser.ltlf import LTLfParser
 
-"""
-Agent from Aadesh's nestm_example"""
+
 class NestAgent(Agent):
     """An minimalistic nest maintenance swarm agent."""
 

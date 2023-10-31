@@ -1,4 +1,5 @@
 from src.swarm import types
+from src.swarm.types import Direction
 
 
 class Neighbourhood:
@@ -45,3 +46,35 @@ class Neighbourhood:
                         cells_with_object.append(cell)
 
         return len(cells_with_object) > 0, cells_with_object
+
+    def get_relative_pos(self, abs_pos):
+        offset_r = self.neighbourhood[self.center[0]][self.center[1]].position[0] - self.center[0]
+        offset_c = self.neighbourhood[self.center[0]][self.center[1]].position[1] - self.center[1]
+
+        return abs_pos[0] - offset_r, abs_pos[1] - offset_c
+
+    def get_next_tile_in_dir(self, curr_pos, direction):
+        next_tile = None
+        match direction:
+            case Direction.UP:
+                if curr_pos[0] == 0:  # top row, cannot go up
+                    next_tile = None
+                else:
+                    next_tile = self.neighbourhood[curr_pos[0] - 1][curr_pos[1]]  # set init tile
+            case Direction.DOWN:
+                if curr_pos[0] == len(self.neighbourhood):  # bottom row, cannot go down
+                    next_tile = None
+                else:
+                    next_tile = self.neighbourhood[curr_pos[0] + 1][curr_pos[1]]  # set init tile
+            case Direction.LEFT:
+                if curr_pos[1] == 0:  # leftmost col, cannot go left
+                    next_tile = None
+                else:
+                    next_tile = self.neighbourhood[curr_pos[0]][curr_pos[1] - 1]  # set init tile
+            case Direction.RIGHT:
+                if curr_pos[1] == len(self.neighbourhood):  # rightmost row, cannot go right
+                    next_tile = None
+                else:
+                    next_tile = self.neighbourhood[curr_pos[0]][curr_pos[1] + 1]  # set init tile
+
+        return next_tile

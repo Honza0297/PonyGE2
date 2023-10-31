@@ -17,7 +17,9 @@ class swarm_fitness_diversity(base_ff):
         # Initialise base fitness function class.
         super().__init__()
         # Simplified in comparison to Aadesh
-        self.execution_behaviors = ["GoTo", "NeighbourObjects", "CanCarry", "CanDrop", "IsCarrying", "PickUp", "Drop"]
+        # TODO need i import exact names (PPAMoveTowards instead of MoveTOwards?) nebo tam mají být jen primitiva? nebo obojí?
+        # NOTE Pravděpodobně jen to, co je v gramatice, ty dílčí ne
+        self.execution_behaviors = ["PPAMoveTowards", "NeighbourObjects", "CanCarry", "CanDrop", "IsCarrying", "PPAPickUp", "PPADrop", "IsVisitedBefore", "PPAMoveAway", "PPARandomWalk"]
         self.execution_behaviors.sort()
 
     def calcualte_diversity(self):
