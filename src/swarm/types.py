@@ -12,7 +12,7 @@ class ObjectType(enum.Enum):
     @staticmethod
     def str2enum(item):
         item = item.lower()
-        retval = ObjectType.GENERIC
+        retval: ObjectType
         match item:
             case "food":
                 retval = ObjectType.FOOD
@@ -37,3 +37,7 @@ class Direction(enum.Enum):
     DOWN = "D"
     LEFT = "L"
     RIGHT = "R"
+
+
+class BlackboardKeys(enum.Enum):
+    NEAR_OBJECT = "nearObject"

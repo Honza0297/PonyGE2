@@ -2,16 +2,18 @@ import py_trees
 from py_trees.composites import Sequence, Selector
 import random
 from src.swarm.math import *
-from math import asin, sqrt, degrees
 from src.swarm.models import TileModel
 from src.swarm.types import ObjectType, Direction
 from py_trees.decorators import Inverter
 
 
-# TODO: keys na blackboardu dat jako typy do types.py
+# TODO: keys na blackboard dat jako typy do types.py
+
 class IsVisitedBefore(py_trees.behaviour.Behaviour):
     def __init__(self, name):
         super(IsVisitedBefore, self).__init__(name)
+        self.agent = None
+        self.item_type = None
 
     def setup(self, agent, item=None, item_type=None) -> None:
         self.agent = agent
@@ -23,7 +25,7 @@ class IsVisitedBefore(py_trees.behaviour.Behaviour):
     def update(self):
         status = py_trees.common.Status.FAILURE
 
-        if self.agent.places_visited[self.item_type]:
+        if self.agent.place_types_visited[self.item_type]:
             status = py_trees.common.Status.SUCCESS
 
         return status
@@ -41,6 +43,10 @@ class ObjectAtDist(py_trees.behaviour.Behaviour):
 
     def __init__(self, name):
         super(ObjectAtDist, self).__init__(name)
+        self.blackboard = None
+        self.distance = None
+        self.item_type = None
+        self.agent = None
 
     def setup(self, agent, item=None, item_type=None, dist=1) -> None:
         self.agent = agent
@@ -66,8 +72,9 @@ class ObjectAtDist(py_trees.behaviour.Behaviour):
         tiles_with_object = list()
         # if not self.agent.neighbourhood.valid:
         #    status = py_trees.common.Status.INVALID
-        if self.agent.neighbourhood.neighbourhood[self.agent.neighbourhood.center[0]][
-            self.agent.neighbourhood.center[1]].position != tuple(self.agent.position):
+        if not self.agent.neighbourhood.neighbourhood[self.agent.neighbourhood.center[0]][self.agent.neighbourhood.center[1]]:
+            pass  # NOTE Sometimes, center is None, could not reproduce in approx. 3k runs though...
+        if self.agent.neighbourhood.neighbourhood[self.agent.neighbourhood.center[0]][self.agent.neighbourhood.center[1]].position != tuple(self.agent.position):
             raise RuntimeError("Center position in neighbourhood {} differs from agent position {}".format(
                 self.agent.neighbourhood.neighbourhood[self.agent.neighbourhood.center[0]][
                     self.agent.neighbourhood.center[1]].position, self.agent.position))
@@ -105,6 +112,9 @@ class RandomWalk(py_trees.behaviour.Behaviour):
 
     def __init__(self, name):
         super(RandomWalk, self).__init__(name)
+        self.blackboard = None
+        self.change_prob = None
+        self.agent = None
 
     def setup(self, agent, item=None, item_type=None, change_prob=25):
         self.agent = agent
@@ -116,8 +126,6 @@ class RandomWalk(py_trees.behaviour.Behaviour):
         pass
 
     def update(self):
-        status = py_trees.common.Status.FAILURE
-
         change_direction = random.randint(1, 100)
         if change_direction <= self.change_prob:  # with prob = self.change_prob %, change direction of random walk
             self.agent.heading = random.choice((Direction.UP, Direction.RIGHT, Direction.DOWN, Direction.LEFT))
@@ -147,6 +155,9 @@ class RandomWalk(py_trees.behaviour.Behaviour):
 class SetNextStep(py_trees.behaviour.Behaviour):
     def __init__(self, name):
         super(SetNextStep, self).__init__(name)
+        self.towards = None
+        self.blackboard = None
+        self.agent = None
 
     def setup(self, agent, item=None, item_type=None, towards=True):
         self.agent = agent
@@ -202,6 +213,9 @@ class Move(py_trees.behaviour.Behaviour):
 
     def __init__(self, name):
         super(Move, self).__init__(name)
+        self.blackboard = None
+        self.running = None
+        self.agent = None
 
     def setup(self, agent, item=None, item_type=None):
         self.agent = agent
@@ -213,7 +227,6 @@ class Move(py_trees.behaviour.Behaviour):
         pass
 
     def update(self):
-        status = py_trees.common.Status.FAILURE
         if not self.agent.next_step:
             status = py_trees.common.Status.FAILURE
         elif tuple(self.agent.position) == tuple(self.agent.next_step):
@@ -279,6 +292,9 @@ class IsCarrying(py_trees.behaviour.Behaviour):
 class CanCarry(py_trees.behaviour.Behaviour):
     def __init__(self, name):
         super(CanCarry, self).__init__(name)
+        self.agent = None
+        self.blackboard = None
+        self.item_type = None
 
     def setup(self, agent, item=None, item_type=None):
         self.agent = agent
@@ -293,7 +309,7 @@ class CanCarry(py_trees.behaviour.Behaviour):
         status = py_trees.common.Status.SUCCESS  # TODO change once items can be non carryable
         item: TileModel
         if self.blackboard.exists(name="goalObject"):
-            item = self.blackboard.get(name="goalObject")
+            # item = self.blackboard.get(name="goalObject")
             # TODO when items start to be carryable and non carryable, implement here. :-)
 
             status = py_trees.common.Status.SUCCESS
@@ -307,6 +323,8 @@ class CanCarry(py_trees.behaviour.Behaviour):
 class IsDroppable(py_trees.behaviour.Behaviour):
     def __init__(self, name):
         super(IsDroppable, self).__init__(name)
+        self.item_type = None
+        self.agent = None
 
     def setup(self, agent, item=None, item_type=None):
         self.agent = agent
@@ -327,6 +345,9 @@ class IsDroppable(py_trees.behaviour.Behaviour):
 class PickUp(py_trees.behaviour.Behaviour):
     def __init__(self, name):
         super(PickUp, self).__init__(name)
+        self.blackboard = None
+        self.running = None
+        self.agent = None
 
     def setup(self, agent, item=None, item_type=None):
         self.running = False
@@ -346,7 +367,6 @@ class PickUp(py_trees.behaviour.Behaviour):
         pass
 
     def update(self):
-        status = py_trees.common.Status.FAILURE
         if self.blackboard.exists(name="goalObject"):
             item = self.blackboard.get(name="goalObject")  # item = TileModel
             try:
@@ -379,6 +399,9 @@ class PickUp(py_trees.behaviour.Behaviour):
 class Drop(py_trees.behaviour.Behaviour):
     def __init__(self, name):
         super(Drop, self).__init__(name)
+        self.agent = None
+        self.item_type = None
+        self.running = None
 
     def setup(self, agent, item=None, item_type=None):
         self.agent = agent
@@ -408,11 +431,6 @@ class Drop(py_trees.behaviour.Behaviour):
         # self.logger.debug("Returning status {}".format(status))
         return status
 
-    def check_drop_status(self):
-        status = py_trees.common.Status.FAILURE
-
-        return status
-
     def terminate(self, new_status):
         pass
 
@@ -420,6 +438,8 @@ class Drop(py_trees.behaviour.Behaviour):
 class CanDrop(py_trees.behaviour.Behaviour):
     def __init__(self, name):
         super(CanDrop, self).__init__(name)
+        self.item_type = None
+        self.agent = None
 
     def setup(self, agent, item=None, item_type=None):
         self.agent = agent
@@ -455,6 +475,7 @@ class CanDrop(py_trees.behaviour.Behaviour):
 class PPARandomWalk(py_trees.behaviour.Behaviour):
     def __init__(self, name):
         super(PPARandomWalk, self).__init__(name)
+        self.bt = None
 
     def setup(self, agent, item=None, item_type=None):
         rw = RandomWalk(name="CRW_random_walk")
@@ -486,6 +507,9 @@ class PPARandomWalk(py_trees.behaviour.Behaviour):
 class GoTo(py_trees.behaviour.Behaviour):
     def __init__(self, name):
         super(GoTo, self).__init__(name)
+        self.bt = None
+        self.item_type = None
+        self.agent = None
 
     def setup(self, agent, item=None, item_type=None):
         self.agent = agent
@@ -513,6 +537,9 @@ class GoTo(py_trees.behaviour.Behaviour):
 class GoAway(py_trees.behaviour.Behaviour):
     def __init__(self, name):
         super(GoAway, self).__init__(name)
+        self.bt = None
+        self.item_type = None
+        self.agent = None
 
     def setup(self, agent, item=None, item_type=None):
         self.agent = agent
@@ -545,6 +572,9 @@ class GoAway(py_trees.behaviour.Behaviour):
 class PPADrop(py_trees.behaviour.Behaviour):
     def __init__(self, name):
         super(PPADrop, self).__init__(name)
+        self.bt = None
+        self.item_type = None
+        self.agent = None
 
     def setup(self, agent, item=None, item_type=None):
         self.agent = agent
@@ -555,12 +585,12 @@ class PPADrop(py_trees.behaviour.Behaviour):
         already_carrying = IsCarrying(name="DRP_already_carrying")
         already_carrying.setup(self.agent, item_type=self.item_type,
                                quantity=1)
-        is_dropped = Inverter(name="DRP_isdropped", child=already_carrying)
+        is_dropped = Inverter(name="DRP_is_dropped", child=already_carrying)
 
         sequence = Sequence(name="DRP_sequence", memory=True)
 
-        is_dropable = IsDroppable(name="DRP_isdroppable")
-        is_dropable.setup(agent, item_type=item_type)
+        is_droppable = IsDroppable(name="DRP_is_droppable")
+        is_droppable.setup(agent, item_type=item_type)
 
         can_drop = CanDrop(name="DRP_canDrop")
         can_drop.setup(agent, item_type=item_type)
@@ -568,7 +598,7 @@ class PPADrop(py_trees.behaviour.Behaviour):
         actually_drop = Drop(name="DRP_actually_drop")
         actually_drop.setup(agent, item_type=item_type)
 
-        sequence.add_children([is_dropable, actually_drop])
+        sequence.add_children([is_droppable, actually_drop])
         selector.add_children([is_dropped, sequence])
 
         self.bt = py_trees.trees.BehaviourTree(root=selector)
@@ -587,6 +617,9 @@ class PPADrop(py_trees.behaviour.Behaviour):
 class PPAPickUp(py_trees.behaviour.Behaviour):
     def __init__(self, name):
         super(PPAPickUp, self).__init__(name)
+        self.bt = None
+        self.item_type = None
+        self.agent = None
 
     def setup(self, agent, item=None, item_type=None):
         self.agent = agent
@@ -599,10 +632,10 @@ class PPAPickUp(py_trees.behaviour.Behaviour):
 
         sequence = Sequence(name="PU_sequence", memory=True)
 
-        object_next_to = ObjectAtDist(name="PU_obje_next_to_agent")
+        object_next_to = ObjectAtDist(name="PU_object_next_to_agent")
         object_next_to.setup(self.agent, item_type=self.item_type)
 
-        object_carryable = CanCarry(name="PU_cancarry")
+        object_carryable = CanCarry(name="PU_can_carry")
         object_carryable.setup(self.agent, item_type=self.item_type)
 
         actually_pickup = PickUp(name="PU_pickup")
@@ -627,6 +660,9 @@ class PPAPickUp(py_trees.behaviour.Behaviour):
 class PPAMoveTowards(py_trees.behaviour.Behaviour):
     def __init__(self, name):
         super(PPAMoveTowards, self).__init__(name)
+        self.bt = None
+        self.item_type = None
+        self.agent = None
 
     def setup(self, agent, item=None, item_type=None):
         self.agent = agent
@@ -660,7 +696,7 @@ class PPAMoveTowards(py_trees.behaviour.Behaviour):
 
         sequence.add_children([see_item, goto])
         if self.item_type == ObjectType.FOOD:
-            #selector.add_children([already_carrying, already_next_to, sequence]) # TODO workaround version from above
+            # selector.add_children([already_carrying, already_next_to, sequence]) # TODO workaround version from above
             selector.add_children([already_next_to, sequence])
         else:
             selector.add_children([already_next_to, sequence])
@@ -680,6 +716,9 @@ class PPAMoveTowards(py_trees.behaviour.Behaviour):
 class PPAMoveAway(py_trees.behaviour.Behaviour):
     def __init__(self, name):
         super(PPAMoveAway, self).__init__(name)
+        self.bt = None
+        self.item_type = None
+        self.agent = None
 
     def setup(self, agent, item=None, item_type=None):
         self.agent = agent
@@ -730,6 +769,7 @@ class DummyNode(py_trees.behaviour.Behaviour):
     def __init__(self, name):
         """Initialize."""
         super(DummyNode, self).__init__(name)
+        self.agent = None
 
     def setup(self, agent, item=None, item_type=None):
         """Setup."""
