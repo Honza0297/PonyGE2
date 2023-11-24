@@ -1,7 +1,7 @@
 numpy~=1.25.0
-scipy~=1.10.1
+scipy>=1.10
 matplotlib~=3.7.0
-pandas~=1.5.3
+pandas>=1.5.3
 scikit-learn>=0.23.2
 
 PyQt5~=5.15.9

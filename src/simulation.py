@@ -11,10 +11,8 @@ from src.swarm.backend import TestBackend
 from src.swarm.gui import SimulationWindow
 import  cProfile
 
-NUM_OF_AGENS = 300
-BOARD_SIZE = 100
-GENOME = [62933, 89433, 46352, 68354, 51358, 88331, 31682, 80501, 76268, 29841, 305, 76489, 12086, 47809, 29773, 16051, 20100, 92708, 11647, 68722, 41550, 93761, 75393, 73668, 85205, 659, 98622, 85241]
-# GENOME = None
+NUM_OF_AGENS = 1
+BOARD_SIZE = 10
 DETERMINISTIC = True  # False
 PARAM_FILE = "AG_params.txt"   # "AG_params.txt" "parameters.txt
 if __name__ == '__main__':

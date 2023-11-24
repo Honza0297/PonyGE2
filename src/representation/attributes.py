@@ -1,9 +1,9 @@
 import re
 
-#from algorithm.parameters import params
+# from algorithm.parameters import params
 from re import DOTALL, MULTILINE, finditer, match
 
-productionpartsregex = '\ *([\r\n]+)\ *|([^\'"<\r\n]+)|\'(.*?)\'|"(.*?)"|(?P<subrule><[^>|\s]+>)|([<]+)'
+productionpartsregex = ' *([\r\n]+)\ *|([^\'"<\r\n]+)|\'(.*?)\'|"(.*?)"|(?P<subrule><[^>|\s]+>)|([<]+)'
 
 
 class AttrCode:
@@ -15,7 +15,8 @@ class AttrCode:
             self.tree = tree
         # lhs is the NT on the LHS of corresponding rule, AKA the root of the tree
         self.lhs = NontermAttrs(self.tree.root,
-                                None if self.tree.root not in self.agent.GE_params["BNF_GRAMMAR"].non_terminals.keys() else
+                                None if self.tree.root not in self.agent.GE_params[
+                                    "BNF_GRAMMAR"].non_terminals.keys() else
                                 self.agent.GE_params["BNF_GRAMMAR"].non_terminals[self.tree.root]["attributes"])
 
         self.aliases = {}
@@ -123,7 +124,7 @@ class AttrCode:
         run_children = False
         children_ran = False
         for code_line in self.exec_code:
-            #dummy = "".join(code_line)
+            # dummy = "".join(code_line)
             nt, var = None, None
 
             # First part in the code line is a non-terminal -> this line is and assignment
@@ -171,16 +172,13 @@ class AttrCode:
             for child in self.tree.children:
                 child.attr_code.run()
 
-
-
-
     def error(self):
         self.valid = False
-        #print("EEEERRRROOOORRRR")
+        # print("EEEERRRROOOORRRR")
 
     def ok(self):
         pass
-        #print("OOOKKK")
+        # print("OOOKKK")
 
     def _get_nt_and_var_from_code_line_part(self, text):
         nt = "<" + text.split("<")[1].split(">")[0] + ">"

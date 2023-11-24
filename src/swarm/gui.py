@@ -108,7 +108,6 @@ class SimulationWindow(QMainWindow):
         self.setCentralWidget(mainWidget)
         self.dimension = dimension
         #signals from GUI
-        # TODO
         #signals to GUI
         self.signal_update.connect(self._update)
         self.update = self.signal_update.emit

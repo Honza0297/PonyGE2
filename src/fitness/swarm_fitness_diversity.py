@@ -4,8 +4,8 @@ from src.fitness.base_ff_classes.base_ff import base_ff
 import random
 import xml.etree.ElementTree as ET
 
-class swarm_fitness_diversity(base_ff):
 
+class swarm_fitness_diversity(base_ff):
     maximise = True
 
     def __init__(self):
@@ -17,9 +17,20 @@ class swarm_fitness_diversity(base_ff):
         # Initialise base fitness function class.
         super().__init__()
         # Simplified in comparison to Aadesh
-        # TODO need i import exact names (PPAMoveTowards instead of MoveTOwards?) nebo tam mají být jen primitiva? nebo obojí?
+        # TODO need i import exact names (PPAMoveTowards instead of MoveTowards?) nebo tam mají být jen primitiva? nebo obojí?
         # NOTE Pravděpodobně jen to, co je v gramatice, ty dílčí ne
-        self.execution_behaviors = ["PPAMoveTowards", "NeighbourObjects", "CanCarry", "CanDrop", "IsCarrying", "PPAPickUp", "PPADrop", "IsVisitedBefore", "PPAMoveAway", "PPARandomWalk"]
+        self.execution_behaviors = ["IsVisitedBefore",
+                                    "NeighbourObjects",
+                                    "IsCarrying",
+                                    "CanCarry",
+                                    "IsDroppable",
+                                    "CanDrop",
+                                    "PPARandomWalk",
+                                    "PPADrop",
+                                    "PPAPickUp",
+                                    "PPAMoveTowards",
+                                    "PPAMoveAway",
+                                    "DummyNode"]
         self.execution_behaviors.sort()
 
     def calcualte_diversity(self):
@@ -35,7 +46,7 @@ class swarm_fitness_diversity(base_ff):
                 sorted_values_sum % behavior_len == 0 and \
                 self.sorted_values[0] == int(
             sorted_values_sum / behavior_len):
-            diversity = 1 # max diversity
+            diversity = 1  # max diversity
         elif self.sorted_keys == self.execution_behaviors and \
                 self.sorted_values[0] <= int(
             sorted_values_sum / behavior_len):
@@ -85,5 +96,5 @@ class swarm_fitness_diversity(base_ff):
                 except KeyError:
                     self.execution[node_text] = 1
                 nodes.append(node_text)
-        fitness = len(nodes)/len(self.execution_behaviors)
+        fitness = len(nodes) / len(self.execution_behaviors)
         return fitness

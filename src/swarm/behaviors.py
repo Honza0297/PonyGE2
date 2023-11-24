@@ -58,7 +58,7 @@ class ObjectAtDist(py_trees.behaviour.Behaviour):
 
         self.distance = dist
         self.blackboard = py_trees.blackboard.Client(name=self.agent.name, namespace=self.agent.name)
-        self.blackboard.register_key(key="nearObjects", access=py_trees.common.Access.WRITE)  # todo better name for key
+        self.blackboard.register_key(key="goalObject", access=py_trees.common.Access.WRITE)  # todo better name for key
 
     def initialise(self) -> None:
         pass
@@ -88,8 +88,15 @@ class ObjectAtDist(py_trees.behaviour.Behaviour):
                     self.logger.debug("DEBUG: found tile of type {} in dist {}".format(tile.type.value, self.distance))
 
         if tiles_with_object:
+            goal_object = tiles_with_object[0]
+            min_dist = self.agent.sense_radius
+            for tile in tiles_with_object:
+                dist = compute_distance(tile.position, self.agent.position)
+                if dist < min_dist:
+                    goal_object = tile
+                    min_dist = dist
             status = py_trees.common.Status.SUCCESS
-            self.blackboard.set("nearObjects", tiles_with_object, overwrite=True)
+            self.blackboard.set("goalObject", goal_object, overwrite=True)
             self.logger.debug("SUCCESS, there {} object{} of type {} in distance={}".format(
                 "are" if len(tiles_with_object) > 1 else "is", "s" if len(tiles_with_object) > 1 else "",
                 self.item_type.value, self.distance))
@@ -496,7 +503,6 @@ class PPARandomWalk(py_trees.behaviour.Behaviour):
         pass
 
     def update(self):
-        print("PPARandomWalk")
         self.bt.tick()
         return self.bt.root.status
 
@@ -696,7 +702,7 @@ class PPAMoveTowards(py_trees.behaviour.Behaviour):
 
         sequence.add_children([see_item, goto])
         if self.item_type == ObjectType.FOOD:
-            # selector.add_children([already_carrying, already_next_to, sequence]) # TODO workaround version from above
+            # selector.add_children([already_carrying, already_next_to, sequence]) # NOTE workaround version from above
             selector.add_children([already_next_to, sequence])
         else:
             selector.add_children([already_next_to, sequence])
@@ -704,7 +710,6 @@ class PPAMoveTowards(py_trees.behaviour.Behaviour):
         self.bt = py_trees.trees.BehaviourTree(root=selector)
 
     def update(self):
-        print("PPAMoveTowards")
         self.bt.tick()
 
         return self.bt.root.status
@@ -732,7 +737,7 @@ class PPAMoveAway(py_trees.behaviour.Behaviour):
         already_away = ObjectAtDist("MA_away")
         already_away.setup(self.agent, item_type=self.item_type, dist=self.agent.sense_radius)
 
-        already_away = Inverter(child=already_away)
+        already_away = Inverter(name="Inverter", child=already_away)
         already_away.setup()
 
         # PPA sequence
@@ -751,9 +756,7 @@ class PPAMoveAway(py_trees.behaviour.Behaviour):
         self.bt = py_trees.trees.BehaviourTree(root=selector)
 
     def update(self):
-        print("PPAMoveAway")
         self.bt.tick()
-
         return self.bt.root.status
 
     def terminate(self, new_status):

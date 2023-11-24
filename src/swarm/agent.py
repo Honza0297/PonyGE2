@@ -27,14 +27,14 @@ from src.representation.individual import Individual
 from PyQt5 import QtCore
 
 
-class EvoAgent():
+class EvoAgent:
     """"
     Agent performing GE locally.
     """
     GE_params: dict[str | Any, str | int | None | Any]
 
     def __init__(self, name, sense_radius=1, max_speed=1, color=QtCore.Qt.black, level=logging.DEBUG, exchange_prob=1,
-                 genome_storage_threshold=2, init_genome=None, params_file="parameters.txt"):
+                 genome_storage_threshold=2, init_genome=None, params_file="parameters.txt", init_position=None):
 
         # Basic agent properties
         self.name = name
@@ -50,6 +50,8 @@ class EvoAgent():
         self.sense_radius = sense_radius
         self.max_speed = max_speed
         self.inventory = list()
+        if init_position:
+            self.set_position(init_position)
 
         # Help simulation variables
         self.neighbourhood = Neighbourhood()
@@ -125,6 +127,7 @@ class EvoAgent():
         if self.init_genome:
             individuals = [Individual(genome=self.init_genome, ind_tree=None, agent=self)]
             self.choose_new_individual(individuals)
+
         else:
             change_ok = False
             while not change_ok:
@@ -170,6 +173,11 @@ class EvoAgent():
         self.bt_wrapper.bt_from_xml()
         return True
 
+    def make_final_stats(self):
+        # TODO :)
+        # Určitě logovat historii fitness funkcí
+        return "Not now"
+
     def step(self):
         """
         Performed every simulation step. Three basic parts as from GEESE algo: SENSE, ACT and UPDATE
@@ -204,6 +212,7 @@ class EvoAgent():
         # ACT()
         # actually act
         self.logger.debug("[TREE] Tree: {}".format(py_trees.display.ascii_tree(self.bt_wrapper.behaviour_tree.root)))
+        self.logger.debug("[GENOME] {}".format(self.individual.genome))
         self.bt_wrapper.behaviour_tree.tick()
         self.compute_fitness()
 
@@ -268,11 +277,13 @@ class EvoAgent():
         BT_feedback_fitness = self.compute_BT_feedback_fitness()
         self.individual.fitness = self.GE_params[
                                       "BETA"] * self.individual.fitness + exploration_fitness + BT_feedback_fitness
+        self.logger.debug("[FITNESS] EX: {}, BT: {}, sum: {}".format(exploration_fitness, BT_feedback_fitness, self.individual.fitness))
 
     def compute_exploration_fitness(self):
         """
         Exploration fitness: number of locations/tiles visited
         """
+        self.logger.debug("[HISTORY] Position history: {}".format(self.position_history))
         return max(len(self.position_history), 0)
 
     def compute_BT_feedback_fitness(self):
@@ -295,21 +306,21 @@ class EvoAgent():
 
     def check_for_newly_visited_object_types(self):
         center = self.neighbourhood.center
-        if self.neighbourhood.neighbourhood[center[0] + 1][center[0] + 1] and \
-                self.neighbourhood.neighbourhood[center[0] + 1][center[0] + 1].occupied:
-            self.place_types_visited[self.neighbourhood.neighbourhood[center[0]][center[0]].object.type] = True
+        if self.neighbourhood.neighbourhood[center[0] + 1][center[1] + 1] and \
+           self.neighbourhood.neighbourhood[center[0] + 1][center[1] + 1].occupied:
+            self.place_types_visited[self.neighbourhood.neighbourhood[center[0] + 1][center[1] + 1].object.type] = True
 
-        if self.neighbourhood.neighbourhood[center[0] - 1][center[0] + 1] and \
-                self.neighbourhood.neighbourhood[center[0] - 1][center[0] + 1].occupied:
-            self.place_types_visited[self.neighbourhood.neighbourhood[center[0]][center[0]].object.type] = True
+        if self.neighbourhood.neighbourhood[center[0] - 1][center[1] + 1] and \
+           self.neighbourhood.neighbourhood[center[0] - 1][center[1] + 1].occupied:
+            self.place_types_visited[self.neighbourhood.neighbourhood[center[0] - 1][center[1] + 1].object.type] = True
 
-        if self.neighbourhood.neighbourhood[center[0] + 1][center[0] - 1] and \
-                self.neighbourhood.neighbourhood[center[0] + 1][center[0] - 1].occupied:
-            self.place_types_visited[self.neighbourhood.neighbourhood[center[0]][center[0]].object.type] = True
+        if self.neighbourhood.neighbourhood[center[0] + 1][center[1] - 1] and \
+           self.neighbourhood.neighbourhood[center[0] + 1][center[1] - 1].occupied:
+            self.place_types_visited[self.neighbourhood.neighbourhood[center[0] + 1][center[1] - 1].object.type] = True
 
-        if self.neighbourhood.neighbourhood[center[0] - 1][center[0] - 1] and \
-                self.neighbourhood.neighbourhood[center[0] - 1][center[0] - 1].occupied:
-            self.place_types_visited[self.neighbourhood.neighbourhood[center[0]][center[0]].object.type] = True
+        if self.neighbourhood.neighbourhood[center[0] - 1][center[1] - 1] and \
+           self.neighbourhood.neighbourhood[center[0] - 1][center[1] - 1].occupied:
+            self.place_types_visited[self.neighbourhood.neighbourhood[center[0] - 1][center[1] - 1].object.type] = True
 
     def set_position(self, pos):
         self.position = list(pos)

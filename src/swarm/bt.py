@@ -25,17 +25,18 @@ from swarms.behaviors.sbehaviors import (       # noqa: F401
 """
 import src.swarm.types as types
 from src.swarm.behaviors import ( # noqa 401
+    IsVisitedBefore,
     ObjectAtDist as NeighbourObjects,
-    PPARandomWalk,
-    DummyNode,
     IsCarrying,
-    CanDrop,
     CanCarry,
-    PPAMoveTowards,
-    PPAMoveAway,
+    IsDroppable,
+    CanDrop,
+    PPARandomWalk,
     PPADrop,
     PPAPickUp,
-    IsVisitedBefore
+    PPAMoveTowards,
+    PPAMoveAway,
+    DummyNode
 )
 
 from py_trees.decorators import SuccessIsRunning, Inverter
@@ -88,7 +89,7 @@ class BTConstruct:
                             self.agent.backend.random.randint(
                                 100, 200)) + '_' + item + '_inv' + '_' + root.tag)
                     behavior.setup(agent=self.agent, item_type=item.lower())
-                    behavior = Inverter(behavior)
+                    behavior = Inverter(name="Inverter", child=behavior)
                     behavior.setup()
                 if type(item) is str:
                     item = types.ObjectType.str2enum(item)
