@@ -324,6 +324,9 @@ class TestBackend(Backend):
         # NOTE: they are not
         resp = Position(agent.name, agent.position)
 
+        # CHECKS whether the movement is valid
+        if new_position[0] < 0 or new_position[1] < 0 or new_position[0] >= self.board_model.dimension or new_position[1] >= self.board_model.dimension:
+            raise RuntimeError("Attempted to move outside border")
         if compute_distance(old_position, new_position) > agent.max_speed:
             raise ValueError("Desired distance greater than max speed")
         if list(old_position) != list(agent.position):

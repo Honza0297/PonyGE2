@@ -126,6 +126,8 @@ class EvoAgent:
 
         if self.init_genome:
             individuals = [Individual(genome=self.init_genome, ind_tree=None, agent=self)]
+            for ind in individuals:
+                ind.evaluate()
             self.choose_new_individual(individuals)
 
         else:

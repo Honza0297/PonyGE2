@@ -72,6 +72,8 @@ class ObjectAtDist(py_trees.behaviour.Behaviour):
         tiles_with_object = list()
         # if not self.agent.neighbourhood.valid:
         #    status = py_trees.common.Status.INVALID
+        if tuple(self.agent.position) == (5,0):
+            pass
         if not self.agent.neighbourhood.neighbourhood[self.agent.neighbourhood.center[0]][self.agent.neighbourhood.center[1]]:
             pass  # NOTE Sometimes, center is None, could not reproduce in approx. 3k runs though...
         if self.agent.neighbourhood.neighbourhood[self.agent.neighbourhood.center[0]][self.agent.neighbourhood.center[1]].position != tuple(self.agent.position):
@@ -181,22 +183,16 @@ class SetNextStep(py_trees.behaviour.Behaviour):
 
         if self.blackboard.exists(name="goalObject"):
             goal = self.blackboard.get(name="goalObject")
-            self.agent.heading = compute_heading(self.agent.position, goal.position)
+            self.agent.heading = compute_heading(self.agent.position, goal.position, towards=self.towards)
 
-        if not self.towards:  # in case we want to move AWAY, we just change the desired direction
-            heading = self.agent.heading
-            match heading:
-                case Direction.UP:
-                    heading = Direction.DOWN
-                case Direction.DOWN:
-                    heading = Direction.UP
-                case Direction.RIGHT:
-                    heading = Direction.LEFT
-                case Direction.LEFT:
-                    heading = Direction.RIGHT
-            self.agent.heading = heading
+        if isinstance(self.agent.heading, tuple):  # broad heading
+            pass
+            # TODO choose right direction depending on the (V OPACNEM PORADI!!! - tjh nejdriv b), potom a))
+                # a) pravděpobnost - aka kdyz jsem od objektu hodne nahoru a malo doprava, pujdu pravdepodobneji doprava nez nahoru
+                # b) abych nevylezl z gridu
 
         self.agent.next_step = list(self.agent.position)
+
         match self.agent.heading:
             case Direction.UP:
                 self.agent.next_step[0] += 1

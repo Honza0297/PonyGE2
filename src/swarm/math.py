@@ -1,3 +1,4 @@
+import random
 from math import degrees, asin, sqrt
 
 from src.swarm.types import Direction
@@ -34,15 +35,30 @@ def choose_direction(start, goal):
     return axis, delta
 
 
-def compute_heading(pos_start, pos_goal):
+def compute_heading(pos_start, pos_goal, towards=True):
     """
                 quadrants:
                 II  | I
                 III | IV
+
+                !!!
+                rows ~ y
+                cols ~ x
+                !!!
                 """
+    if tuple(pos_start) == (5, 0) and tuple(pos_goal) == (7, 0):
+        pass
     quadrant = - 1
-    delta_x = pos_goal[0] - pos_start[0]
-    delta_y = pos_goal[1] - pos_start[1]
+    # NOTE rows are "y values" and cols are "x values":
+    #    c1 c2 c3 ...            ____________ x values
+    # r1                        |
+    # r2                 ->     |                         (and y axis "grows" to down)
+    # r3                        |
+    # ...                       |
+    #                         y values
+
+    delta_y = pos_goal[0] - pos_start[0]
+    delta_x = pos_goal[1] - pos_start[1]
 
     if delta_x > 0 and delta_y > 0:
         quadrant = 1
@@ -79,6 +95,9 @@ def compute_heading(pos_start, pos_goal):
     elif angle >= 315 or angle <= 44:
         heading = Direction.RIGHT
 
-
+    if not towards:  # AKA if away
+        heading = Direction.broad_direction(Direction.reverse(heading))
 
     return heading
+
+
