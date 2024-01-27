@@ -50,7 +50,7 @@ class Direction(enum.Enum):
                 ret = (Direction.UP, Direction.DOWN, Direction.LEFT)
             case Direction.RIGHT:
                 ret = (Direction.UP, Direction.DOWN, Direction.RIGHT)
-        return ret
+        return list(ret)
 
     @staticmethod
     def reverse(direction):

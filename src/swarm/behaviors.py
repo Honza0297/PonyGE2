@@ -179,29 +179,29 @@ class SetNextStep(py_trees.behaviour.Behaviour):
         pass
 
     def update(self):
-        status = py_trees.common.Status.SUCCESS
+        status = py_trees.common.Status.FAILURE
+        self.agent.next_step = self.agent.position
 
         if self.blackboard.exists(name="goalObject"):
             goal = self.blackboard.get(name="goalObject")
             self.agent.heading = compute_heading(self.agent.position, goal.position, towards=self.towards)
 
-        if isinstance(self.agent.heading, tuple):  # broad heading
-            pass
+        if isinstance(self.agent.heading, list):  # broad heading
+            current_distance = compute_distance(self.agent.position, goal.position)
+            while True:
+                heading = random.choice(self.agent.heading)
+                new_pos = pos_from_heading(self.agent.position, heading)
+                if not valid_heading(pos, heading):
+                    self.agent.heading.pop(heading)
+                else:
+                    self.agent.heading = heading
+
+
             # TODO choose right direction depending on the (V OPACNEM PORADI!!! - tjh nejdriv b), potom a))
                 # a) pravděpobnost - aka kdyz jsem od objektu hodne nahoru a malo doprava, pujdu pravdepodobneji doprava nez nahoru
                 # b) abych nevylezl z gridu
 
-        self.agent.next_step = list(self.agent.position)
 
-        match self.agent.heading:
-            case Direction.UP:
-                self.agent.next_step[0] += 1
-            case Direction.DOWN:
-                self.agent.next_step[0] -= 1
-            case Direction.RIGHT:
-                self.agent.next_step[1] += 1
-            case Direction.LEFT:
-                self.agent.next_step[1] -= 1
 
         return status
 
@@ -235,7 +235,9 @@ class Move(py_trees.behaviour.Behaviour):
         elif tuple(self.agent.position) == tuple(self.agent.next_step):
             self.logger.debug(
                 "SUCCESS, {} is already at next step {}".format(self.agent.name, self.agent.next_step))
+            self.blackboard.unset(key="goalObject")  # unset goal because cannot move towards it. if error check for existence
             status = py_trees.common.Status.SUCCESS
+
         else:
             resp = self.agent.backend.move_agent(self.agent, self.agent.position, self.agent.next_step)
             if resp and list(resp.position) == list(self.agent.next_step):

@@ -5,6 +5,9 @@ from src.swarm.types import Direction
 
 
 def compute_distance(pos1, pos2):
+    """
+    Computes distance as a number of steps needed to travel between the two positions in a 4-neighbourhood grid.
+    """
     if len(pos1) != len(pos2):
         raise ValueError("Position vectors have different lenght")
     if len(pos1) != 2:
@@ -101,3 +104,15 @@ def compute_heading(pos_start, pos_goal, towards=True):
     return heading
 
 
+def pos_from_heading(pos, heading):
+    ret = list(pos)
+    match heading:
+        case Direction.UP:
+            ret[0] += 1
+        case Direction.DOWN:
+            ret[0] -= 1
+        case Direction.RIGHT:
+            ret[1] += 1
+        case Direction.LEFT:
+            ret[1] -= 1
+    return ret
