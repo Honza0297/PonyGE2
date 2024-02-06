@@ -161,6 +161,24 @@ class RandomWalk(py_trees.behaviour.Behaviour):
         pass
 
 
+def remove_invalid_headings(agent):
+    heading = []
+    if not isinstance(agent.heading, (tuple, list)):
+        agent.heading = [agent.heading]
+    for direction in agent.heading:
+        candidate_pos = pos_from_heading(agent.position, direction)
+        # Dimension check
+        if candidate_pos[0] < 0 or candidate_pos[1] < 0 or candidate_pos[0] >= agent.backend.board_model.dimension or candidate_pos[1] >= agent.backend.board_model.dimension:
+            continue
+        # occupancy check
+        elif agent.neighbourhood.get_next_tile_in_dir(agent.neighbourhood.center, direction).occupied:
+            continue
+        else:
+            heading.append(direction)
+
+    return heading
+
+
 class SetNextStep(py_trees.behaviour.Behaviour):
     def __init__(self, name):
         super(SetNextStep, self).__init__(name)
@@ -185,24 +203,27 @@ class SetNextStep(py_trees.behaviour.Behaviour):
         if self.blackboard.exists(name="goalObject"):
             goal = self.blackboard.get(name="goalObject")
             self.agent.heading = compute_heading(self.agent.position, goal.position, towards=self.towards)
+        else:
+            raise ValueError("No valid goalObject present")
 
         if isinstance(self.agent.heading, list):  # broad heading
             current_distance = compute_distance(self.agent.position, goal.position)
-            while True:
-                heading = random.choice(self.agent.heading)
-                new_pos = pos_from_heading(self.agent.position, heading)
-                if not valid_heading(pos, heading):
-                    self.agent.heading.pop(heading)
-                else:
-                    self.agent.heading = heading
-
-
-            # TODO choose right direction depending on the (V OPACNEM PORADI!!! - tjh nejdriv b), potom a))
-                # a) pravděpobnost - aka kdyz jsem od objektu hodne nahoru a malo doprava, pujdu pravdepodobneji doprava nez nahoru
-                # b) abych nevylezl z gridu
-
-
-
+            self.agent.heading = remove_invalid_headings(self.agent)
+            if self.agent.heading:
+                # todo not random, but based on quality - current distance change
+                self.agent.heading = random.choice(self.agent.heading)
+                self.agent.next_step = pos_from_heading(self.agent.position, self.agent.heading)
+                status = py_trees.common.Status.SUCCESS
+        else:
+            # If direct heading not possible (obstacle), use broad heading
+            if not remove_invalid_headings(self.agent):
+                self.agent.heading = Direction.broad_direction(self.agent.heading)
+            self.agent.heading = remove_invalid_headings(self.agent)
+            if self.agent.heading:
+                # todo not random, but based on quality - current distance change
+                self.agent.heading = random.choice(self.agent.heading)
+                self.agent.next_step = pos_from_heading(self.agent.position, self.agent.heading)
+                status = py_trees.common.Status.SUCCESS
         return status
 
     def terminate(self, new_status):

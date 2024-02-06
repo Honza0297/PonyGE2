@@ -255,7 +255,7 @@ class EvoAgent:
             self.steps_without_evolution = 0
 
             individuals = initialisation(size=10, agent=self)  # size of the population = 10
-            evaluate_fitness(individuals)
+            evaluate_fitness(individuals, agent=self)
             self.choose_new_individual(individuals)
 
         self.logger.debug("[F] Current fitness: {}".format(self.individual.fitness))

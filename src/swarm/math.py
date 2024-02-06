@@ -38,6 +38,39 @@ def choose_direction(start, goal):
     return axis, delta
 
 
+def angle_from_deltas(dx, dy):
+    bias = None
+    if dy == 0 or dx == 0:
+        if dx == 0 and dy == 0:
+            raise Exception("Agent already arrived to the goal")
+        elif dx == 0 and dy < 0:
+            angle = 90
+        elif dx == 0 and dy > 0:
+            angle = 270
+        elif dx < 0 and dy == 0:
+            angle = 180
+        elif dx > 0 and dy == 0:
+            angle = 0
+    else:
+        bias = 0
+        if dx > 0 and dy > 0:
+            bias = 270
+        elif dx < 0 < dy:
+            bias = 180
+        elif dx < 0 and dy < 0:
+            bias = 90
+        elif dy < 0 < dx:
+            bias = 0
+
+        angle = degrees(asin(abs(dy) / sqrt(abs(dx) ** 2 + abs(dy) ** 2)))
+
+        if (dx < 0 and dy < 0) or (dx > 0 and dy > 0):
+            angle = 90-angle
+
+        angle += bias
+    return angle
+
+
 def compute_heading(pos_start, pos_goal, towards=True):
     """
                 quadrants:
@@ -49,9 +82,6 @@ def compute_heading(pos_start, pos_goal, towards=True):
                 cols ~ x
                 !!!
                 """
-    if tuple(pos_start) == (5, 0) and tuple(pos_goal) == (7, 0):
-        pass
-    quadrant = - 1
     # NOTE rows are "y values" and cols are "x values":
     #    c1 c2 c3 ...            ____________ x values
     # r1                        |
@@ -60,26 +90,10 @@ def compute_heading(pos_start, pos_goal, towards=True):
     # ...                       |
     #                         y values
 
-    delta_y = pos_goal[0] - pos_start[0]
-    delta_x = pos_goal[1] - pos_start[1]
+    dy = pos_goal[0] - pos_start[0]
+    dx = pos_goal[1] - pos_start[1]
+    angle = angle_from_deltas(dx, dy)
 
-    if delta_x > 0 and delta_y > 0:
-        quadrant = 1
-    elif delta_x < 0 < delta_y:
-        quadrant = 2
-    elif delta_x < 0 and delta_y < 0:
-        quadrant = 3
-    elif delta_x > 0 > delta_y:
-        quadrant = 4
-
-    delta_x = abs(delta_x)
-    delta_y = abs(delta_y)
-
-    angle = degrees(asin(delta_y / sqrt(delta_x ** 2 + delta_y ** 2)))
-    for i in range(quadrant - 1):
-        angle += 90
-
-    angle = angle % 360
     heading = Direction.UP
     """
     Directions: 
@@ -108,9 +122,9 @@ def pos_from_heading(pos, heading):
     ret = list(pos)
     match heading:
         case Direction.UP:
-            ret[0] += 1
-        case Direction.DOWN:
             ret[0] -= 1
+        case Direction.DOWN:
+            ret[0] += 1
         case Direction.RIGHT:
             ret[1] += 1
         case Direction.LEFT:

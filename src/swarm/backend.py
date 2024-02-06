@@ -139,17 +139,15 @@ class TestBackend(Backend):
                                  params_file=param_file)
 
             self.register_agent(agent)
+        #food = [FoodSource("jidlo" + str(random.randint(0, 100)), ObjectType.FOOD, 2) for _ in range(1)]
+        food = FoodSource("jidlo", ObjectType.FOOD, 7)
+        hub = Hub("hub", ObjectType.HUB, 10)
 
+        self.place_object(hub, (self.board_model.dimension//2, self.board_model.dimension//2))
+        self.place_object(food, (32, 32))
+        self.update_gui()
         self.place_agents()
         self.update_gui()
-        food = [FoodSource("jidlo" + str(random.randint(0, 100)), ObjectType.FOOD, 2) for _ in range(1)]
-        hub = Hub("hub", ObjectType.HUB, 4)
-        self.place_object(hub, [10, 10])
-        self.update_gui()
-
-        for f in food:
-            self.place_object(f, [8, 0])
-            self.update_gui()
 
     def do_final_stats(self):
         self.logger.debug("---------Final report----------")
@@ -326,7 +324,7 @@ class TestBackend(Backend):
 
         # CHECKS whether the movement is valid
         if new_position[0] < 0 or new_position[1] < 0 or new_position[0] >= self.board_model.dimension or new_position[1] >= self.board_model.dimension:
-            raise RuntimeError("Attempted to move outside border")
+            raise RuntimeError("Attempted to move outside border (from {} to {}".format(old_position, new_position))
         if compute_distance(old_position, new_position) > agent.max_speed:
             raise ValueError("Desired distance greater than max speed")
         if list(old_position) != list(agent.position):
