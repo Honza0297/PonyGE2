@@ -81,14 +81,16 @@ class BTConstruct:
                     behavior = eval(method)(method + str(
                         self.agent.backend.random.randint(
                             100, 200)) + '_' + item + '_' + root.tag)
-                    behavior.setup(agent=self.agent, item_type=item.lower())
+                    item = types.ObjectType.str2enum(item)
+                    behavior.setup(agent=self.agent, item_type=item)
                 else:
                     method, item, _ = nodeval
                     behavior = eval(method)(
                         method + str(
                             self.agent.backend.random.randint(
                                 100, 200)) + '_' + item + '_inv' + '_' + root.tag)
-                    behavior.setup(agent=self.agent, item_type=item.lower())
+                    item = types.ObjectType.str2enum(item)
+                    behavior.setup(agent=self.agent, item_type=item)
                     behavior = Inverter(name="Inverter", child=behavior)
                     behavior.setup()
                 if type(item) is str:

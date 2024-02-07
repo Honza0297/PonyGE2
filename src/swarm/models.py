@@ -1,11 +1,12 @@
-"""
-Generic BoardModel.
-"""
+
 from PyQt5 import QtCore
 from src.swarm.types import ObjectType
 
 
 class BoardModel:
+    """
+Generic BoardModel.
+"""
     def __init__(self, dimension):
         tiles = list()
         for r in range(dimension):

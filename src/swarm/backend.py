@@ -5,6 +5,7 @@ import sys
 import time
 import logging
 import threading
+from typing import Optional
 
 from src.swarm.agent import EvoAgent
 from src.swarm.math import compute_distance
@@ -21,7 +22,7 @@ class Backend(threading.Thread):
         super(Backend, self).__init__()
         self.gui = gui
 
-        self.board_model = None  # BoardModel(gui.dimension)
+        self.board_model: Optional[BoardModel] = None  # BoardModel(gui.dimension)
         self.agents = list()
         self.random = random
 
@@ -144,6 +145,7 @@ class TestBackend(Backend):
         hub = Hub("hub", ObjectType.HUB, 10)
 
         self.place_object(hub, (self.board_model.dimension//2, self.board_model.dimension//2))
+        #self.place_object(food, (5,5))
         self.place_object(food, (32, 32))
         self.update_gui()
         self.place_agents()
@@ -267,26 +269,32 @@ class TestBackend(Backend):
         self.food_dropped_history.append((agent.name, pos, cnd_food_to_hub))
         return resp
 
+    def _randomly_place_object(self, agent):
+        pos = None
+        while True:
+            pos = (
+                random.randint(0, self.board_model.dimension - 1),
+                random.randint(0, self.board_model.dimension - 1))
+            tile = self.board_model.tiles[pos[0]][pos[1]]
+            if not tile.occupied and tile.place_object(agent):
+                # self.agents[agent_name].position = list(tile.position)
+                break
+            else:
+                continue
+        agent.set_position(pos)
+
     def place_agents(self):
         for agent in self.agents:
             if agent.position:
-                self.board_model.tiles[agent.position[0]][agent.position[1]].place_object(agent)
+                if self.board_model.tiles[agent.position[0]][agent.position[1]].occupied:
+                    self.logger.warning("{} wanted to be placed at {}, but position is occupied, replacing".format(
+                        agent.name, agent.position))
+                    agent.position = None
+                    self._randomly_place_object(agent)
+                else:
+                    self.board_model.tiles[agent.position[0]][agent.position[1]].place_object(agent)
             else:
-                pos = None
-                while True:
-                    pos = (
-                        random.randint(0, self.board_model.dimension - 1),
-                        random.randint(0, self.board_model.dimension - 1))
-                    tile = self.board_model.tiles[pos[0]][pos[1]]
-                    if not tile.occupied:
-                        if tile.place_object(agent):
-                            # self.agents[agent_name].position = list(tile.position)
-                            break
-                        else:
-                            continue
-                    else:
-                        continue
-                agent.set_position(pos)
+                self._randomly_place_object(agent)
 
     def sense_object_neighbourhood(self, obj):
         pos = obj.position

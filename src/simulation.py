@@ -11,7 +11,7 @@ from src.swarm.backend import TestBackend
 from src.swarm.gui import SimulationWindow
 import  cProfile
 
-NUM_OF_AGENS = 1
+NUM_OF_AGENS = 100
 BOARD_SIZE = 100
 DETERMINISTIC = True  # False
 PARAM_FILE = "AG_params.txt"   # "AG_params.txt" "parameters.txt
@@ -24,8 +24,8 @@ if __name__ == '__main__':
 
     gui = SimulationWindow(BOARD_SIZE)
     backend = TestBackend(gui, deterministic=DETERMINISTIC)
-    gui.register_backend(backend)
     backend.setup_simulation(NUM_OF_AGENS, PARAM_FILE)
+    gui.register_backend(backend)
 
     backend.start()
 

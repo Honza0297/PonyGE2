@@ -3,12 +3,13 @@ import logging
 import os
 import random
 import time
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 # BT
 import py_trees
 from src.swarm.bt import BTConstruct
 from src.swarm.default_params import default_params
+from src.swarm.models import TileModel
 from src.swarm.neighbourhood import Neighbourhood
 from src.swarm.packets import *
 from src.swarm.types import ObjectType
@@ -26,6 +27,7 @@ from src.representation.individual import Individual
 # Other
 from PyQt5 import QtCore
 
+from src.swarm.objects import ObjectType
 
 class EvoAgent:
     """"
@@ -45,8 +47,13 @@ class EvoAgent:
         self.position = None
         # Places which agent did visit = was next to it. Reseted every time new behavior is adopted:
         self.position_history = set()
-        self.place_types_visited = {ObjectType.FOOD: False, ObjectType.HUB: False}
+        self.places_visited = {ObjectType.FOOD: False, ObjectType.HUB: True}
+        # according to aadesh, agents should be memory full
+        # TODO make it full object with helping functions etc
+        self.local_map: Optional[list[list[TileModel|None]]] = []
+
         self.goal = None
+        self.objects_of_interest = {}
 
         self.sense_radius = sense_radius
         self.max_speed = max_speed
@@ -157,7 +164,8 @@ class EvoAgent:
             self.logger.debug("[IND_CHG] Current individual changed (fitness {} -> {})".format(
                 self.individual.fitness if self.individual else "nan", self.individuals[0].fitness))
             self.individual = self.individuals[0]  # first = best
-            self.place_types_visited = {"food": False, "hub": False}  # Reset memory when new behavior is chosen
+            #self.places_visited = {ObjectType.FOOD: False, ObjectType.HUB: True}
+            #self.local_map = list()
             self.position_history = set()
         else:
             self.logger.debug("[IND_CHG] Current individual not changed.")
@@ -200,7 +208,7 @@ class EvoAgent:
         # actually sense
         resp = self.backend.sense_object_neighbourhood(self)
         self.neighbourhood.set_neighbourhood(resp.neighbourhood)
-        self.check_for_newly_visited_object_types()
+        self.update_local_map()
 
         # Try to exchange genomes
         agents_present, neighbouring_agent_cells = self.neighbourhood.get(ObjectType.AGENT)
@@ -218,6 +226,7 @@ class EvoAgent:
         self.logger.debug("[GENOME] {}".format(self.individual.genome))
         self.bt_wrapper.behaviour_tree.tick()
         self.compute_fitness()
+        self.logger.debug("[GOAL] Goal is: {}".format(self.goal))
 
         # UPDATE()
         # If there is enough genomes to perform evolution...
@@ -307,23 +316,33 @@ class EvoAgent:
 
         return selectors_reward + postcond_reward
 
-    def check_for_newly_visited_object_types(self):
-        center = self.neighbourhood.center
-        if self.neighbourhood.neighbourhood[center[0] + 1][center[1] + 1] and \
-           self.neighbourhood.neighbourhood[center[0] + 1][center[1] + 1].occupied:
-            self.place_types_visited[self.neighbourhood.neighbourhood[center[0] + 1][center[1] + 1].object.type] = True
+    def update_local_map(self):
+        """
+        Zpracovani okoli - jinak receno, aktualizace lokalni mapy
+        """
+        if not self.local_map:
+            dim = self.backend.board_model.dimension
+            for r in range(dim):
+                self.local_map.append([None for c in range(dim)])
+        for r in range(self.neighbourhood.size):
+            for c in range(self.neighbourhood.size):
+                if self.neighbourhood.neighbourhood[r][c]:
+                    ar, ac = self.neighbourhood.neighbourhood[r][c].position  # absolute coordinates from local
+                    # We do not want to have agents it the map because they are moving often
+                    if (self.neighbourhood.neighbourhood[r][c].occupied and
+                            self.neighbourhood.neighbourhood[r][c].type == ObjectType.AGENT):
+                        continue
+                    self.local_map[ar][ac] = self.neighbourhood.neighbourhood[r][c]
+                    if False in self.places_visited.values() and self.neighbourhood.neighbourhood[r][c].occupied:
+                        self.places_visited[self.neighbourhood.neighbourhood[r][c].type] = True
 
-        if self.neighbourhood.neighbourhood[center[0] - 1][center[1] + 1] and \
-           self.neighbourhood.neighbourhood[center[0] - 1][center[1] + 1].occupied:
-            self.place_types_visited[self.neighbourhood.neighbourhood[center[0] - 1][center[1] + 1].object.type] = True
+                else:
+                    continue
 
-        if self.neighbourhood.neighbourhood[center[0] + 1][center[1] - 1] and \
-           self.neighbourhood.neighbourhood[center[0] + 1][center[1] - 1].occupied:
-            self.place_types_visited[self.neighbourhood.neighbourhood[center[0] + 1][center[1] - 1].object.type] = True
-
-        if self.neighbourhood.neighbourhood[center[0] - 1][center[1] - 1] and \
-           self.neighbourhood.neighbourhood[center[0] - 1][center[1] - 1].occupied:
-            self.place_types_visited[self.neighbourhood.neighbourhood[center[0] - 1][center[1] - 1].object.type] = True
+                """if self.neighbourhood.neighbourhood[center[0] + r][center[1] + c] and \
+                        self.neighbourhood.neighbourhood[center[0] + r][center[1] + c].occupied:
+                    self.places_visited[
+                        self.neighbourhood.neighbourhood[center[0] + r][center[1] + c].object.type] = True"""
 
     def set_position(self, pos):
         self.position = list(pos)
@@ -345,24 +364,25 @@ class EvoAgent:
             if item.type == item_type:
                 self.dropping_item = item
                 self.inventory.remove(item)
-                position = None  # where to drop
+                drop_position = None
                 tiles_next_to = [self.neighbourhood.neighbourhood[self.sense_radius + 1][self.sense_radius + 1],
                                  self.neighbourhood.neighbourhood[self.sense_radius + 1][self.sense_radius - 1],
                                  self.neighbourhood.neighbourhood[self.sense_radius - 1][self.sense_radius + 1],
                                  self.neighbourhood.neighbourhood[self.sense_radius - 1][self.sense_radius - 1]
                                  ]
-
+                # Preferably drop to hub
                 for tile in tiles_next_to:
                     if tile and tile.occupied and tile.object.type == ObjectType.HUB:
                         self.logger.debug("[FH] Dropping food to HUB at {}".format(tile.position))
-                        position = tile.position
+                        drop_position = tile.position
 
-                if not position:  # no hub nearby
+                if not drop_position:  # no hub nearby
                     for tile in tiles_next_to:
                         if tile and not tile.occupied:
-                            position = tile.position
-                if position:
-                    resp = self.backend.drop_out_resp(self, DropReq(self.name, item_type, position))
+                            drop_position = tile.position
+
+                if drop_position:
+                    resp = self.backend.drop_out_resp(self, DropReq(self.name, item_type, drop_position))
                 else:
                     self.inventory.append(self.dropping_item)
                     self.dropping_item = None

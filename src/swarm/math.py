@@ -3,6 +3,7 @@ from math import degrees, asin, sqrt
 
 from src.swarm.types import Direction
 
+MAX_DISTANCE = -1
 
 def compute_distance(pos1, pos2):
     """
@@ -71,7 +72,7 @@ def angle_from_deltas(dx, dy):
     return angle
 
 
-def compute_heading(pos_start, pos_goal, towards=True):
+def heading_from_pos(pos_start, pos_goal, towards=True):
     """
                 quadrants:
                 II  | I
@@ -116,7 +117,6 @@ def compute_heading(pos_start, pos_goal, towards=True):
         heading = Direction.broad_direction(Direction.reverse(heading))
 
     return heading
-
 
 def pos_from_heading(pos, heading):
     ret = list(pos)

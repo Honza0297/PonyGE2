@@ -7,10 +7,11 @@ from PyQt5.QtWidgets import *
 
 from src.swarm.models import BoardModel
 
-"""
-Class representing Board on the screen
-"""
+
 class QBoard(QWidget):
+    """
+    Class representing Board on the screen
+    """
     def __init__(self, parent=None, dimension=8):
         super().__init__(parent=parent)
         self.dimension = dimension
@@ -44,6 +45,11 @@ class QTile(QWidget):
         self.image = None
         self.hole = False
         self.position = position
+        self.mouseReleaseEvent = self.print_info
+        self.tile_model = None
+
+    def print_info(self, event):
+        print(self.tile_model) # TODO
 
     def set_image(self, img, img_type):
         self.image = img
@@ -116,8 +122,12 @@ class SimulationWindow(QMainWindow):
 
         #self.draw_hole =self.signal_add_hole.emit
         self.show()
+
     def register_backend(self, backend):
         self.backend = backend
+        for r in range(len(self.backend.board_model.tiles)):
+            for c in range(len(self.backend.board_model.tiles)):
+                self.board.tiles[r][c].tile_model = self.backend.board_model.tiles[r][c]
 
     def reset_board(self, dimension):
         for r in range(dimension):

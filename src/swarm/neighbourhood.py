@@ -83,17 +83,20 @@ class Neighbourhood:
                 else:
                     next_tile = self.neighbourhood[curr_pos[0] - 1][curr_pos[1]]  # set init tile
             case Direction.DOWN:
-                if curr_pos[0] == len(self.neighbourhood):  # bottom row, cannot go down
+                if curr_pos[0] == 2*self.radius:  # bottom row, cannot go down
                     next_tile = None
                 else:
-                    next_tile = self.neighbourhood[curr_pos[0] + 1][curr_pos[1]]  # set init tile
+                    try:
+                        next_tile = self.neighbourhood[curr_pos[0] + 1][curr_pos[1]]  # set init tile
+                    except IndexError:
+                        pass
             case Direction.LEFT:
                 if curr_pos[1] == 0:  # leftmost col, cannot go left
                     next_tile = None
                 else:
                     next_tile = self.neighbourhood[curr_pos[0]][curr_pos[1] - 1]  # set init tile
             case Direction.RIGHT:
-                if curr_pos[1] == len(self.neighbourhood):  # rightmost row, cannot go right
+                if curr_pos[1] == 2*self.radius:  # rightmost row, cannot go right
                     next_tile = None
                 else:
                     next_tile = self.neighbourhood[curr_pos[0]][curr_pos[1] + 1]  # set init tile
