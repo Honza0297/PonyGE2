@@ -1,6 +1,5 @@
-from src.swarm import types
-from src.swarm.types import Direction
-
+from src.swarm.types import Direction, ObjectType
+from src.swarm.math import  compute_distance
 
 class Neighbourhood:
     def __init__(self, neighbourhood=None):
@@ -9,7 +8,9 @@ class Neighbourhood:
             self.valid = False
             self.radius = 0
             self.center = None
+            self.center_abs_coordinates = None
             self.size = 0
+            self.objects = dict()
         else:
             self.set_neighbourhood(neighbourhood)
 
@@ -35,9 +36,21 @@ class Neighbourhood:
         self.valid = True
         self.radius = len(self.neighbourhood) // 2
         self.center = (self.radius, self.radius)
+        self.center_abs_coordinates = self.neighbourhood[self.center[0]][self.center[1]].position
         self.size = len(self.neighbourhood)
+        self.objects = {t: [] for t in (ObjectType.AGENT, ObjectType.HUB, ObjectType.FOOD)}
 
-    def get(self, obj_type: types.ObjectType):
+        for row in self.neighbourhood:
+            for cell in row:
+                if cell and cell.occupied:
+                    distance = compute_distance(self.center_abs_coordinates, cell.position)
+                    if not self.objects[cell.type]:
+                        self.objects[cell.type] = [(cell, distance)]
+                    else:
+                        self.objects[cell.type].append((cell, distance))
+
+
+    def get(self, obj_type: ObjectType):
         cells_with_object = list()
         for row in self.neighbourhood:
             for cell in row:
@@ -52,6 +65,14 @@ class Neighbourhood:
         offset_c = self.neighbourhood[self.center[0]][self.center[1]].position[1] - self.center[1]
 
         return abs_pos[0] - offset_r, abs_pos[1] - offset_c
+
+    def get_objects(self, object_type: ObjectType, max_distance=None):
+        """
+        Returns list of objects of given type that are no farther than max_distance,
+        """
+        if not max_distance:
+            max_distance = self.size
+        return [obj for obj in self.objects[object_type] if obj[1] <= max_distance]
 
     def get_next_tile_in_dir(self, curr_pos, direction):
         next_tile = None

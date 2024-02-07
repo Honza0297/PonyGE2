@@ -46,6 +46,7 @@ class EvoAgent:
         # Places which agent did visit = was next to it. Reseted every time new behavior is adopted:
         self.position_history = set()
         self.place_types_visited = {ObjectType.FOOD: False, ObjectType.HUB: False}
+        self.goal = None
 
         self.sense_radius = sense_radius
         self.max_speed = max_speed

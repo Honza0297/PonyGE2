@@ -7,9 +7,15 @@ from src.swarm.types import ObjectType, Direction
 from py_trees.decorators import Inverter
 
 
-# TODO: keys na blackboard dat jako typy do types.py
-
+# TODO
+# 1) Check jestli isvisited before je na typ objektu nebo na konkrétní instance
+  # * plus aadesh to má na vzdálenost, ne vyloženě být vedle - mám to taky tak?
+# 2) objectatdist by neměl setovat goalobject, ale jen množiny daných objektů
+ #    !!! Pro aadese je objectatdist/neighbourobjects něco jako "pochop, co vidíš"! Projde totiž všechny políčka v dohledu a utřídí si je podle typu
 class IsVisitedBefore(py_trees.behaviour.Behaviour):
+    """
+    Checks if agent's memory contains given object type (not particular object)
+    """
     def __init__(self, name):
         super(IsVisitedBefore, self).__init__(name)
         self.agent = None
@@ -17,7 +23,7 @@ class IsVisitedBefore(py_trees.behaviour.Behaviour):
 
     def setup(self, agent, item=None, item_type=None) -> None:
         self.agent = agent
-        self.item_type = item_type
+        self.item_type = item_type if item_type else item
 
     def initialise(self):
         pass
@@ -37,28 +43,22 @@ class IsVisitedBefore(py_trees.behaviour.Behaviour):
 class ObjectAtDist(py_trees.behaviour.Behaviour):
     """
     Checks if there are objects of the given type in the given distance.
-    Result in BT blackboard nearObjects key
     If dist = 1, then the agent is able to pick up the near object.
     """
 
     def __init__(self, name):
         super(ObjectAtDist, self).__init__(name)
-        self.blackboard = None
         self.distance = None
         self.item_type = None
         self.agent = None
 
     def setup(self, agent, item=None, item_type=None, dist=1) -> None:
         self.agent = agent
-
-        if type(item_type) is str:
+        if isinstance(item_type, str):
             self.item_type = ObjectType.str2enum(item_type)
         else:
             self.item_type = item_type
-
         self.distance = dist
-        self.blackboard = py_trees.blackboard.Client(name=self.agent.name, namespace=self.agent.name)
-        self.blackboard.register_key(key="goalObject", access=py_trees.common.Access.WRITE)  # todo better name for key
 
     def initialise(self) -> None:
         pass
@@ -81,33 +81,25 @@ class ObjectAtDist(py_trees.behaviour.Behaviour):
                 self.agent.neighbourhood.neighbourhood[self.agent.neighbourhood.center[0]][
                     self.agent.neighbourhood.center[1]].position, self.agent.position))
 
-        for row in self.agent.neighbourhood.neighbourhood:
+        """for row in self.agent.neighbourhood.neighbourhood:
             # TODO optimize: skip rows too far
             for tile in row:
                 if tile and compute_distance(tile.position, self.agent.position) <= self.distance \
                         and tile.type == self.item_type:
                     tiles_with_object.append(tile)
-                    self.logger.debug("DEBUG: found tile of type {} in dist {}".format(tile.type.value, self.distance))
-
-        if tiles_with_object:
-            goal_object = tiles_with_object[0]
-            min_dist = self.agent.sense_radius
-            for tile in tiles_with_object:
-                dist = compute_distance(tile.position, self.agent.position)
-                if dist < min_dist:
-                    goal_object = tile
-                    min_dist = dist
+                    self.logger.debug("DEBUG: found tile of type {} in dist {}".format(tile.type.value, self.distance))"""
+        objects = self.agent.neighbourhood.get_objects(object_type=self.item_type, max_distance=self.distance)
+        if objects:
             status = py_trees.common.Status.SUCCESS
-            self.blackboard.set("goalObject", goal_object, overwrite=True)
             self.logger.debug("SUCCESS, there {} object{} of type {} in distance={}".format(
-                "are" if len(tiles_with_object) > 1 else "is", "s" if len(tiles_with_object) > 1 else "",
+                "are" if len(objects) > 1 else "is", "s" if len(objects) > 1 else "",
                 self.item_type.value, self.distance))
+            # TODO chci to někam uložit?
         else:
             self.logger.debug("FAILURE, no object of type {} in distance={}".format(self.item_type.value,
                                                                                     self.distance))
             self.logger.debug("\n{}".format(self.agent.neighbourhood))
         return status
-        # copying values out from Neighbourhood() to shorten expressions
 
     def terminate(self, new_state):
         pass
@@ -118,7 +110,6 @@ class RandomWalk(py_trees.behaviour.Behaviour):
     Prepare the intention to move in a random direction.
     Direction is updated with prob = self.change_prob
     """
-
     def __init__(self, name):
         super(RandomWalk, self).__init__(name)
         self.blackboard = None
@@ -128,8 +119,6 @@ class RandomWalk(py_trees.behaviour.Behaviour):
     def setup(self, agent, item=None, item_type=None, change_prob=25):
         self.agent = agent
         self.change_prob = change_prob  # percent
-        self.blackboard = py_trees.blackboard.Client(name=self.agent.name, namespace=self.agent.name)
-        self.blackboard.register_key(key="goalObject", access=py_trees.common.Access.WRITE)
 
     def initialise(self):
         pass
@@ -149,7 +138,8 @@ class RandomWalk(py_trees.behaviour.Behaviour):
             tmp_tile = self.agent.neighbourhood.get_next_tile_in_dir(curr_pos, Direction.UP)
 
         if goal:  # goal found (i.e. the path is clear)
-            self.blackboard.set(name="goalObject", value=goal, overwrite=True)
+            self.agent.goal = goal
+            #self.blackboard.set(name="goalObject", value=goal, overwrite=True)
             status = py_trees.common.Status.SUCCESS
         else:  # cannot go in desired direction
             self.agent.heading = random.choice((Direction.UP, Direction.RIGHT, Direction.DOWN, Direction.LEFT))
@@ -180,6 +170,9 @@ def remove_invalid_headings(agent):
 
 
 class SetNextStep(py_trees.behaviour.Behaviour):
+    """
+    Computes next position based on current goal
+    """
     def __init__(self, name):
         super(SetNextStep, self).__init__(name)
         self.towards = None
@@ -189,8 +182,8 @@ class SetNextStep(py_trees.behaviour.Behaviour):
     def setup(self, agent, item=None, item_type=None, towards=True):
         self.agent = agent
         self.blackboard = py_trees.blackboard.Client(name=self.agent.name, namespace=self.agent.name)
-        # self.blackboard.register_key(key="nearObjects", access=py_trees.common.Access.WRITE)  # todo better name for key
-        self.blackboard.register_key(key="goalObject", access=py_trees.common.Access.WRITE)
+       # # self.blackboard.register_key(key="nearObjects", access=py_trees.common.Access.WRITE)  # todo better name for key
+        #self.blackboard.register_key(key="goalObject", access=py_trees.common.Access.WRITE)
         self.towards = towards
 
     def initialise(self):
@@ -200,11 +193,16 @@ class SetNextStep(py_trees.behaviour.Behaviour):
         status = py_trees.common.Status.FAILURE
         self.agent.next_step = self.agent.position
 
-        if self.blackboard.exists(name="goalObject"):
+        """if self.blackboard.exists(name="goalObject"):
             goal = self.blackboard.get(name="goalObject")
             self.agent.heading = compute_heading(self.agent.position, goal.position, towards=self.towards)
         else:
-            raise ValueError("No valid goalObject present")
+            raise ValueError("No valid goalObject present")"""
+        if self.agent.goal:
+            goal = self.agent.goal
+            self.agent.heading = compute_heading(self.agent.position, goal.position, towards=self.towards)
+        else:
+            raise ValueError("No goal present")
 
         if isinstance(self.agent.heading, list):  # broad heading
             current_distance = compute_distance(self.agent.position, goal.position)
@@ -244,8 +242,8 @@ class Move(py_trees.behaviour.Behaviour):
     def setup(self, agent, item=None, item_type=None):
         self.agent = agent
         self.running = False
-        self.blackboard = py_trees.blackboard.Client(name=self.agent.name, namespace=self.agent.name)
-        self.blackboard.register_key(key="goalObject", access=py_trees.common.Access.READ)
+        #self.blackboard = py_trees.blackboard.Client(name=self.agent.name, namespace=self.agent.name)
+        #self.blackboard.register_key(key="goalObject", access=py_trees.common.Access.READ)
 
     def initialise(self):
         pass
@@ -256,7 +254,7 @@ class Move(py_trees.behaviour.Behaviour):
         elif tuple(self.agent.position) == tuple(self.agent.next_step):
             self.logger.debug(
                 "SUCCESS, {} is already at next step {}".format(self.agent.name, self.agent.next_step))
-            self.blackboard.unset(key="goalObject")  # unset goal because cannot move towards it. if error check for existence
+            #self.blackboard.unset(key="goalObject")  # unset goal because cannot move towards it. if error check for existence
             status = py_trees.common.Status.SUCCESS
 
         else:
@@ -274,7 +272,7 @@ class Move(py_trees.behaviour.Behaviour):
                 self.logger.debug(
                     "FAILURE, resp.position = {} and agent's next step = {} not the same".format(resp.position,
                                                                                                  self.agent.next_step))
-                self.blackboard.unset(key="goalObject")  # unset goal because cannot move towards it. if error check for existence
+                #self.blackboard.unset(key="goalObject")  # unset goal because cannot move towards it. if error check for existence
                 status = py_trees.common.Status.FAILURE
 
         return status
@@ -371,30 +369,27 @@ class IsDroppable(py_trees.behaviour.Behaviour):
 class PickUp(py_trees.behaviour.Behaviour):
     def __init__(self, name):
         super(PickUp, self).__init__(name)
-        self.blackboard = None
+        #self.blackboard = None
         self.running = None
         self.agent = None
 
     def setup(self, agent, item=None, item_type=None):
-        self.running = False
+        #self.running = False
         self.agent = agent
-
-        num, cells = self.agent.neighbourhood.get(item_type)
-        if num > 0:
-            item = random.choice(cells)
-
-        self.blackboard = py_trees.blackboard.Client(name=self.agent.name, namespace=self.agent.name)
-        self.blackboard.register_key(key="goalObject", access=py_trees.common.Access.WRITE)
-
         if item:
-            self.blackboard.set("goalObject", item)
+            self.item_type = item.type
+        else:
+            self.item_type = item_type
+
+
 
     def initialise(self):
         pass
 
     def update(self):
-        if self.blackboard.exists(name="goalObject"):
-            item = self.blackboard.get(name="goalObject")  # item = TileModel
+        neighbour_objects = self.agent.neighbourhood.get_objects(self.item_type, 1)
+        if neighbour_objects:
+            item = random.choice(neighbour_objects)[0]  # item to pick
             try:
                 pickup_status = self.agent.pickUpReq(item.position)
                 if pickup_status:
