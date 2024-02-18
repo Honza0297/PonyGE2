@@ -29,7 +29,7 @@
 
 <preconditiont> ::= CanCarry_<dobjects> | CanDrop_<dobjects> | NeighbourObjects_<objects> | NeighbourObjects_<objects>_invert | IsCarrying_<dobjects> | IsCarrying_<dobjects>_invert
 
-<action> ::= GoTo_<objects> | PPARandomWalk | PPAPickUp_<objects> | PPADrop_<objects>
+<action> ::= PPAMoveTowards_<objects> | PPARandomWalk | PPAPickUp_<objects> | PPADrop_<objects> | PPAMoveAway_<objects>
 
 <objects> ::= <sobjects> | <dobjects>
 

@@ -1,4 +1,9 @@
-from typing import Optional
+"""
+In every behavior, only setup and update methods are important.
+setup: setup basic things needed for the behavior.
+update: performed every time a behavior is ticked (activated).
+"""
+from typing import Optional, List, Tuple
 
 import py_trees
 from py_trees.composites import Sequence, Selector
@@ -8,11 +13,11 @@ from src.swarm.math import *
 from src.swarm.models import TileModel
 from src.swarm.types import ObjectType, Direction
 from py_trees.decorators import Inverter
-
+from src.swarm.agent import EvoAgent
 
 class IsVisitedBefore(py_trees.behaviour.Behaviour):
     """
-    Checks if agent's memory contains given object type (not particular object)
+    Checks if agent's memory contains object of given type (not particular object).
     """
     def __init__(self, name):
         super(IsVisitedBefore, self).__init__(name)
@@ -27,6 +32,7 @@ class IsVisitedBefore(py_trees.behaviour.Behaviour):
         pass
 
     def update(self):
+
         status = py_trees.common.Status.FAILURE
 
         if self.agent.places_visited[self.item_type]:
@@ -41,9 +47,8 @@ class IsVisitedBefore(py_trees.behaviour.Behaviour):
 class ObjectAtDist(py_trees.behaviour.Behaviour):
     """
     Checks if there are objects of the given type in the given distance.
-    If dist = 1, then the agent is able to pick up the near object.
+    If dist = 1, then the agent is able to pick up the object.
     """
-
     def __init__(self, name):
         from src.swarm.agent import EvoAgent  # because of type annotation
         super(ObjectAtDist, self).__init__(name)
@@ -51,49 +56,64 @@ class ObjectAtDist(py_trees.behaviour.Behaviour):
         self.item_type = None
         self.agent: Optional[EvoAgent] = None
 
-    def setup(self, agent, item=None, item_type=None, dist=1) -> None:
+    def setup(self, agent: EvoAgent, item=None, item_type=None, dist=1) -> None:
         self.agent = agent
         if isinstance(item_type, str):
             self.item_type = ObjectType.str2enum(item_type)
         else:
             self.item_type = item_type
         self.distance = dist
+        self.logger = agent.logger
 
     def initialise(self) -> None:
         pass
+    
+    def _search_neighbourhood(self) -> Tuple[py_trees.common.Status, List]:
+        """
+        Search agent's neighbourhood. If the object is found, return SUCCESS and the list of objects.
+        """
+        status = py_trees.common.Status.FAILURE
+        objects = []
+        
+        if not self.agent.neighbourhood.valid:
+            self.logger.debug("running, neighbourhood not valid -> waiting to the next iteration")
+            status = py_trees.common.Status.RUNNING
+        elif not self.agent.neighbourhood.neighbourhood[self.agent.neighbourhood.center[0]][self.agent.neighbourhood.center[1]]:
+            pass  # NOTE Sometimes, center is None, could not reproduce in approx. 12k runs though...
+        if self.agent.neighbourhood.neighbourhood[self.agent.neighbourhood.center[0]][self.agent.neighbourhood.center[1]].position != tuple(self.agent.position):
+            raise RuntimeError("Center position in neighbourhood {} differs from agent position {}".format(
+                self.agent.neighbourhood.neighbourhood[self.agent.neighbourhood.center[0]][
+                    self.agent.neighbourhood.center[1]].position, self.agent.position))
 
+        objects = self.agent.neighbourhood.get_objects(object_type=self.item_type, max_distance=self.distance)
+        return status, objects
+    
+    def _search_local_map(self) -> Tuple[py_trees.common.Status, List]:
+        status = py_trees.common.Status.FAILURE
+        objects = []
+        for row in self.agent.local_map:
+            for tile in row:
+                if tile and tile.occupied and tile.type == self.item_type:
+                    objects.append((tile, compute_distance(self.agent.position, tile.position)))
+        
+        return status, objects
+    
     def update(self) -> py_trees.common.Status:
         status = py_trees.common.Status.FAILURE
-
-        if self.distance <= self.agent.sense_radius or self.item_type == ObjectType.AGENT:  # use neighbourhood
-            if not self.agent.neighbourhood.valid:
-                self.logger.debug("running, neighbourhood not valid -> waiting to the next iteration")
-                return py_trees.common.Status.RUNNING
-            if not self.agent.neighbourhood.neighbourhood[self.agent.neighbourhood.center[0]][self.agent.neighbourhood.center[1]]:
-                pass  # NOTE Sometimes, center is None, could not reproduce in approx. 3k runs though...
-            if self.agent.neighbourhood.neighbourhood[self.agent.neighbourhood.center[0]][self.agent.neighbourhood.center[1]].position != tuple(self.agent.position):
-                raise RuntimeError("Center position in neighbourhood {} differs from agent position {}".format(
-                    self.agent.neighbourhood.neighbourhood[self.agent.neighbourhood.center[0]][
-                        self.agent.neighbourhood.center[1]].position, self.agent.position))
-
-            objects = self.agent.neighbourhood.get_objects(object_type=self.item_type, max_distance=self.distance)
-        else:  # use local_map
-            objects = []
-            for row in self.agent.local_map:
-                for tile in row:
-                    if tile and tile.occupied and tile.type == self.item_type:
-                        objects.append((tile, compute_distance(self.agent.position, tile.position)))
-
-        if objects:
+        
+        objects = self._search_neighbourhood()
+        if not objects:
+            objects = self._search_local_map()
+        if not objects:
+            self.logger.debug("FAILURE, no object of type {} in distance={}".format(self.item_type.value,
+                                                                                    self.distance))
+        else:
             status = py_trees.common.Status.SUCCESS
             self.logger.debug("SUCCESS, there {} object{} of type {} in distance={}".format(
                 "are" if len(objects) > 1 else "is", "s" if len(objects) > 1 else "",
                 self.item_type.value, self.distance))
             self.agent.objects_of_interest[self.item_type] = objects
-        else:
-            self.logger.debug("FAILURE, no object of type {} in distance={}".format(self.item_type.value,
-                                                                                    self.distance))
-            self.logger.debug("\n{}".format(self.agent.neighbourhood))
+
         return status
 
     def terminate(self, new_state):

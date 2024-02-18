@@ -8,13 +8,15 @@ from typing import Dict, Any, Optional
 # BT
 import py_trees
 from src.swarm.bt import BTConstruct
-from src.swarm.default_params import default_params
+
+# simulation
 from src.swarm.models import TileModel
 from src.swarm.neighbourhood import Neighbourhood
 from src.swarm.packets import *
 from src.swarm.types import ObjectType
 
 # GE
+from src.swarm.default_params import default_params
 import src.algorithm.parameters
 from src.fitness.evaluation import evaluate_fitness
 from src.operators.crossover import crossover
@@ -27,11 +29,10 @@ from src.representation.individual import Individual
 # Other
 from PyQt5 import QtCore
 
-from src.swarm.objects import ObjectType
 
 class EvoAgent:
     """"
-    Agent performing GE locally.
+    Agent performing GE locally on its own.
     """
     GE_params: dict[str | Any, str | int | None | Any]
 
@@ -45,12 +46,10 @@ class EvoAgent:
 
         # Simulation
         self.position = None
-        # Places which agent did visit = was next to it. Reseted every time new behavior is adopted:
-        self.position_history = set()
+        self.position_history = set()  # Places which agent did visit = was next to it. Do not reset after behavior change
         self.places_visited = {ObjectType.FOOD: False, ObjectType.HUB: True}
-        # according to aadesh, agents should be memory full
-        # TODO make it full object with helping functions etc
-        self.local_map: Optional[list[list[TileModel|None]]] = []
+        # according to aadesh, agents should be memory full(?)
+        self.local_map: Optional[list[list[TileModel | None]]] = [] # TODO make it full object with helping functions etc
 
         self.goal = None
         self.objects_of_interest = {}
@@ -113,13 +112,16 @@ class EvoAgent:
         # self.logger.addHandler(stream_handler)
 
     def __repr__(self):
+        """
+        How agent is printed.
+        """
         return "Agent {} at {}".format(self.name, self.position)
 
     def setup(self):
         self.init_GE()
         self.setup_logging()
 
-    def init_GE(self):
+    def init_GE(self):  # noqa
         # Init GE parameters
         src.algorithm.parameters.load_params(self.param_file, agent=self)
         src.algorithm.parameters.set_params(None, create_files=True, agent=self)
@@ -128,7 +130,7 @@ class EvoAgent:
             val = self.GE_params[key]
             try:
                 val = eval(val)
-            except:
+            except TypeError:  # If error arises here, change TypeError to Exception
                 pass
             self.GE_params[key] = val
 
@@ -164,12 +166,11 @@ class EvoAgent:
             self.logger.debug("[IND_CHG] Current individual changed (fitness {} -> {})".format(
                 self.individual.fitness if self.individual else "nan", self.individuals[0].fitness))
             self.individual = self.individuals[0]  # first = best
-            #self.places_visited = {ObjectType.FOOD: False, ObjectType.HUB: True}
-            #self.local_map = list()
+            # self.places_visited = {ObjectType.FOOD: False, ObjectType.HUB: True}
+            # self.local_map = list()
             self.position_history = set()
         else:
             self.logger.debug("[IND_CHG] Current individual not changed.")
-
 
         # In case new individual will be invalid, return False to notify layer above something is wrong
         if self.individual.invalid:
@@ -191,7 +192,10 @@ class EvoAgent:
 
     def step(self):
         """
-        Performed every simulation step. Three basic parts as from GEESE algo: SENSE, ACT and UPDATE
+        Performed every simulation step. Three basic parts as from GEESE algo: SENSE, ACT and UPDATE.
+        SENSE: perceive environment together with asking for genome from agents.
+        ACT: perform one tick in behavior tree.
+        UPDATE: perform evolution step, if enough genomes are gathered (or too long in bad behavior).
         """
         self.logger.info("--------------------------------")
         start_time = time.perf_counter()
@@ -261,7 +265,7 @@ class EvoAgent:
         # else if evolution was not performed for too long...
         elif self.steps_without_evolution > self.GE_params["MAX_STEPS_WITHOUT_EVOLUTION"]:
             self.logger.debug("[EVO] Reached MAX_STEPS_WITHOUT_EVOLUTION ({}), reinitialising genome (exchanged "
-                              "genomes retained).".format(self.GE_params["MAX_STEPS_WITHOUT_EVOLUTION"]))
+                              "genomes retained).".format(self.GE_params["MAX_STEPS_WITHOUT_EVOLUTIONA u "]))
             self.steps_without_evolution = 0
 
             individuals = initialisation(size=10, agent=self)  # size of the population = 10
@@ -289,7 +293,8 @@ class EvoAgent:
         BT_feedback_fitness = self.compute_BT_feedback_fitness()
         self.individual.fitness = self.GE_params[
                                       "BETA"] * self.individual.fitness + exploration_fitness + BT_feedback_fitness
-        self.logger.debug("[FITNESS] EX: {}, BT: {}, sum: {}".format(exploration_fitness, BT_feedback_fitness, self.individual.fitness))
+        self.logger.debug("[FITNESS] EX: {}, BT: {}, sum: {}".format(exploration_fitness, BT_feedback_fitness,
+                                                                     self.individual.fitness))
 
     def compute_exploration_fitness(self):
         """
