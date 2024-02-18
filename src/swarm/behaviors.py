@@ -27,6 +27,8 @@ class IsVisitedBefore(py_trees.behaviour.Behaviour):
     def setup(self, agent, item=None, item_type=None) -> None:
         self.agent = agent
         self.item_type = item_type if item_type else item.type
+        self.logger = agent.logger
+
 
     def initialise(self):
         pass
@@ -105,8 +107,7 @@ class ObjectAtDist(py_trees.behaviour.Behaviour):
         if not objects:
             objects = self._search_local_map()
         if not objects:
-            self.logger.debug("FAILURE, no object of type {} in distance={}".format(self.item_type.value,
-                                                                                    self.distance))
+            self.logger.debug(f"FAILURE, no object of type {self.item_type.value} in distance={self.distance}")
         else:
             status = py_trees.common.Status.SUCCESS
             self.logger.debug("SUCCESS, there {} object{} of type {} in distance={}".format(
@@ -141,7 +142,7 @@ class RandomWalk(py_trees.behaviour.Behaviour):
 
     def update(self):
         change_direction = random.randint(1, 100)
-        if change_direction <= self.change_prob or self.last_time_failed:  # with prob = self.change_prob %, change direction of random walk
+        if change_direction <= self.change_prob or self.last_time_failed:  # with prob = self.change_prob, change direction of random walk
             self.agent.heading = random.choice((Direction.UP, Direction.RIGHT, Direction.DOWN, Direction.LEFT))
 
         # set goal as the farthest tile in direct sight (not occupied) in the desired direction
@@ -157,7 +158,6 @@ class RandomWalk(py_trees.behaviour.Behaviour):
         else:  # cannot go in desired direction
             self.agent.goal = None
             self.last_time_failed = True
-            #self.agent.heading = random.choice((Direction.UP, Direction.RIGHT, Direction.DOWN, Direction.LEFT))
             status = py_trees.common.Status.FAILURE
 
         return status
@@ -165,51 +165,65 @@ class RandomWalk(py_trees.behaviour.Behaviour):
     def terminate(self, new_status):
         pass
 
-
-def remove_invalid_headings(agent):
-    heading = []
-    if not isinstance(agent.heading, (tuple, list)):
-        agent.heading = [agent.heading]
-    for direction in agent.heading:
-        candidate_pos = pos_from_heading(agent.position, direction)
-        # Dimension check
-        if candidate_pos[0] < 0 or candidate_pos[1] < 0 or candidate_pos[0] >= agent.backend.board_model.dimension or candidate_pos[1] >= agent.backend.board_model.dimension:
-            continue
-        # occupancy check
-        elif agent.neighbourhood.get_next_tile_in_dir(agent.neighbourhood.center, direction).occupied:
-            continue
-        else:
-            heading.append(direction)
-
-    return heading
-
-
 class SetNextStep(py_trees.behaviour.Behaviour):
     """
     Computes next position based on current goal
-    TODO: currently, no speed is implemented
+    TODO: currently, no speed is implemented (resp. speed is 1 tile per tick)
+    
+    NOTE: Broad heading is used when direct heading is not possible (obstacle in the way...).
+        # Specifically, it is the main heading (for example UP) and the two adjacent headings (LEFT, RIGHT).
     """
     def __init__(self, name):
         super(SetNextStep, self).__init__(name)
         self.towards = None
         self.agent = None
 
-    def setup(self, agent, item=None, item_type=None, towards=True):
+    def setup(self, agent: EvoAgent, item=None, item_type=None, towards=True):
         self.agent = agent
         self.towards = towards
+        self.logger = agent.logger
 
     def initialise(self):
         pass
+    
+    def _remove_invalid_headings(self):
+        """
+        Remove invalid headings from the list of candidate headings.
+        """
+        heading = []
+        if not isinstance(self.agent.heading, (tuple, list)):
+            self.agent.heading = [self.agent.heading]
+        for direction in self.agent.heading:
+            candidate_pos = pos_from_heading(self.agent.position, direction)
+            # Dimension check
+            if candidate_pos[0] < 0 or candidate_pos[1] < 0 or candidate_pos[0] >= self.agent.backend.board_model.dimension or candidate_pos[1] >= self.agent.backend.board_model.dimension:
+                continue
+            # occupancy check
+            elif self.agent.neighbourhood.get_next_tile_in_dir(self.agent.neighbourhood.center, direction).occupied:
+                continue
+            else:
+                heading.append(direction)
 
+        return heading
+
+    def _next_step_from_broad_heading(self) -> py_trees.common.Status:
+        """
+        If broad heading is used, the next step is the closest tile in the broad heading.
+        """
+        heading_and_distance = []
+        for h in self.agent.heading:
+            new_tile = self.agent.neighbourhood.get_next_tile_in_dir(self.agent.neighbourhood.center, h)
+            dist = compute_distance(new_tile.position, self.agent.goal.position)
+            heading_and_distance.append((h, dist))
+        heading_and_distance.sort(key=lambda x: x[1])
+        self.agent.heading = heading_and_distance[0][0]
+        self.agent.next_step = pos_from_heading(self.agent.position, self.agent.heading)
+        return py_trees.common.Status.SUCCESS
+    
     def update(self) -> py_trees.common.Status:
         status = py_trees.common.Status.FAILURE
         self.agent.next_step = self.agent.position
 
-        """if self.blackboard.exists(name="goalObject"):
-            goal = self.blackboard.get(name="goalObject")
-            self.agent.heading = compute_heading(self.agent.position, goal.position, towards=self.towards)
-        else:
-            raise ValueError("No valid goalObject present")"""
         if self.agent.goal:
             goal = self.agent.goal
             self.agent.heading = heading_from_pos(self.agent.position, goal.position, towards=self.towards)
@@ -218,27 +232,21 @@ class SetNextStep(py_trees.behaviour.Behaviour):
             return status
 
         if isinstance(self.agent.heading, list):  # broad heading
-            self.agent.heading = remove_invalid_headings(self.agent)
-            if self.agent.heading:
-                # todo not random, but based on quality - current distance change
-                self.agent.heading = random.choice(self.agent.heading)
-                self.agent.next_step = pos_from_heading(self.agent.position, self.agent.heading)
-                status = py_trees.common.Status.SUCCESS
-        else:
+            self.agent.heading = self._remove_invalid_headings(self.agent)
+            status = self._next_step_from_broad_heading()
+        else: # normal heading
             # If direct heading not possible (obstacle), use broad heading
-            if not remove_invalid_headings(self.agent):
+            if not self._remove_invalid_headings(self.agent):
                 self.agent.heading = Direction.broad_direction(self.agent.heading)
-            self.agent.heading = remove_invalid_headings(self.agent)
-            if self.agent.heading:
-                # todo not random, but based on quality - current distance change
-                self.agent.heading = random.choice(self.agent.heading)
+                self.agent.heading = self._remove_invalid_headings(self.agent)
+                status = self._next_step_from_broad_heading()
+            else: # direct heading possible
                 self.agent.next_step = pos_from_heading(self.agent.position, self.agent.heading)
                 status = py_trees.common.Status.SUCCESS
         return status
 
     def terminate(self, new_status):
         pass
-
 
 class Move(py_trees.behaviour.Behaviour):
     """
@@ -254,6 +262,7 @@ class Move(py_trees.behaviour.Behaviour):
     def setup(self, agent, item=None, item_type=None):
         self.agent = agent
         self.running = False
+        self.logger = agent.logger
 
     def initialise(self):
         pass
@@ -263,16 +272,15 @@ class Move(py_trees.behaviour.Behaviour):
             status = py_trees.common.Status.FAILURE
         elif tuple(self.agent.position) == tuple(self.agent.next_step):
             self.logger.debug(
-                "SUCCESS, {} is already at next step {}".format(self.agent.name, self.agent.next_step))
-            #self.blackboard.unset(key="goalObject")  # unset goal because cannot move towards it. if error check for existence
+                f"SUCCESS, {self.agent.name} is already at next step {self.agent.next_step}")
             self.agent.next_step = None
             self.agent.goal = None
             status = py_trees.common.Status.SUCCESS
         elif self.agent.goal.occupied and self.agent.goal.type in (ObjectType.FOOD, ObjectType.HUB) and \
             compute_distance(tuple(self.agent.position), tuple(self.agent.next_step)) == 1:  # next to food or hub
-            print("SUCCESS, {} is already next to {}".format(self.agent.name, self.agent.goal.type))
+            #print(f"SUCCESS, {self.agent.name} is already next to {self.agent.goal.type}")
             self.logger.debug(
-                "SUCCESS, {} is already next to {}".format(self.agent.name, self.agent.goal.type))
+                f"SUCCESS, {self.agent.name} is already next to {self.agent.goal.type}")
             self.agent.next_step = None
             self.agent.goal = None
             status = py_trees.common.Status.SUCCESS
@@ -284,7 +292,6 @@ class Move(py_trees.behaviour.Behaviour):
                     "SUCCESS, {} got response corresponding to its next_step={}".format(self.agent.name,
                                                                                         self.agent.next_step))
                 self.agent.set_position(resp.position)
-                # TODO do i check for neighbourhood validity?
                 self.agent.neighbourhood.valid = False  # we have moved -> neighbourhood is invalid
                 status = py_trees.common.Status.SUCCESS
             else:
@@ -306,10 +313,11 @@ class IsCarrying(py_trees.behaviour.Behaviour):
         self.item_type = None
         self.agent = None
 
-    def setup(self, agent, item=None, item_type=None, quantity=1):
+    def setup(self, agent: EvoAgent, item=None, item_type=None, quantity=1):
         self.agent = agent
         self.item_type = item_type
         self.quantity = quantity
+        self.logger = agent.logger
 
     def initialise(self):
         pass
@@ -319,11 +327,11 @@ class IsCarrying(py_trees.behaviour.Behaviour):
 
         for item in self.agent.inventory:
             if item.type == self.item_type:
-                self.logger.debug("SUCCESS, item of type {} found in inventory".format(self.item_type))
+                self.logger.debug(f"SUCCESS, item of type {self.item_type} found in inventory")
                 status = py_trees.common.Status.SUCCESS
                 break
         if self.agent.dropping_item == self.item_type:  # when in the middle of dropping
-            self.logger.debug("SUCCESS, item of type {} is the item to be dropped".format(self.item_type))
+            self.logger.debug(f"SUCCESS, item of type {self.item_type} is the item to be dropped")
             status = py_trees.common.Status.SUCCESS
         return status
 
@@ -340,22 +348,19 @@ class CanCarry(py_trees.behaviour.Behaviour):
 
     def setup(self, agent, item=None, item_type=None):
         self.agent = agent
-        self.blackboard = py_trees.blackboard.Client(name=self.agent.name, namespace=self.agent.name)
-        self.blackboard.register_key(key="goalObject", access=py_trees.common.Access.READ)
         self.item_type = None
+        self.logger = agent.logger
 
     def initialise(self):
         pass
 
     def update(self):
-        status = py_trees.common.Status.SUCCESS  # TODO change once items can be non carryable
-        item: TileModel
-        if self.blackboard.exists(name="goalObject"):
-            # item = self.blackboard.get(name="goalObject")
-            # TODO when items start to be carryable and non carryable, implement here. :-)
-
+        status = py_trees.common.Status.FAILURE  # TODO change once items can be non carryable
+        if self.item_type == ObjectType.FOOD:
             status = py_trees.common.Status.SUCCESS
-        self.logger.debug("SUCCESS, everything is carryable :)")
+            self.logger.debug("SUCCESS, food is carryable")
+        else:
+            self.logger.debug("FAILURE, item is not carryable (item is not food)")
         return status
 
     def terminate(self, new_status):
@@ -368,9 +373,10 @@ class IsDroppable(py_trees.behaviour.Behaviour):
         self.item_type = None
         self.agent = None
 
-    def setup(self, agent, item=None, item_type=None):
+    def setup(self, agent: EvoAgent, item=None, item_type=None):
         self.agent = agent
         self.item_type = item_type
+        self.logger = agent.logger
 
     def initialise(self):
         pass
@@ -385,13 +391,17 @@ class IsDroppable(py_trees.behaviour.Behaviour):
 
 
 class PickUp(py_trees.behaviour.Behaviour):
+    """
+    Pick up an object of a given type from distance 1.
+    Currently, only food can be picked up.
+    """
     def __init__(self, name):
         super(PickUp, self).__init__(name)
         #self.blackboard = None
         self.running = None
         self.agent = None
 
-    def setup(self, agent, item=None, item_type=None):
+    def setup(self, agent: EvoAgent, item=None, item_type=None):
         #self.running = False
         self.agent = agent
         if item:
@@ -410,7 +420,7 @@ class PickUp(py_trees.behaviour.Behaviour):
                 pickup_status = self.agent.pickUpReq(item.position)
                 if pickup_status:
                     self.running = False
-                    self.logger.debug("SUCCESS, {} picked up an object".format(self.agent.name))
+                    self.logger.debug(f"SUCCESS, {self.agent.name} picked up an object")
                     status = py_trees.common.Status.SUCCESS
                 else:
                     self.running = True
@@ -440,10 +450,11 @@ class Drop(py_trees.behaviour.Behaviour):
         self.item_type = None
         self.running = None
 
-    def setup(self, agent, item=None, item_type=None):
+    def setup(self, agent: EvoAgent, item=None, item_type=None):
         self.agent = agent
         self.item_type = item_type
         self.running = False
+        self.logger = agent.logger
 
     def initialise(self):
         pass
@@ -516,10 +527,11 @@ class SetGoal(py_trees.behaviour.Behaviour):
         self.agent = None
         self.item_type: ObjectType = ObjectType.GENERIC
 
-    def setup(self, agent, item=None, item_type=ObjectType.GENERIC):
+    def setup(self, agent: EvoAgent, item=None, item_type=ObjectType.GENERIC):
         """Setup."""
         self.agent = agent
         self.item_type = item_type
+        self.logger = agent.logger
 
     def initialise(self):
         """Pass."""
@@ -619,7 +631,7 @@ class GoAway(py_trees.behaviour.Behaviour):
 # PPA BEHAVIORS
 ###
 
-class PPARandomWalk(py_trees.behaviour.Behaviour):  # checked 24
+class PPARandomWalk(py_trees.behaviour.Behaviour): 
     def __init__(self, name):
         super(PPARandomWalk, self).__init__(name)
         self.bt = None
@@ -627,7 +639,6 @@ class PPARandomWalk(py_trees.behaviour.Behaviour):  # checked 24
     def setup(self, agent, item=None, item_type=None):
         rw = RandomWalk(name="PPA_random_walk_random_walk")
         rw.setup(agent, item, item_type)
-        # todo change sns and move to goto
         sns = SetNextStep(name="PPA_random_walk_next_step")
         sns.setup(agent)
 

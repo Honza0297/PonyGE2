@@ -42,12 +42,12 @@ class Backend(threading.Thread):
 
 
     def setup(self):
-        if not os.path.exists("../results/{}".format(self.agents[0].GE_params["LOG_FOLDER"])):
-            os.makedirs("../results/{}".format(self.agents[0].GE_params["LOG_FOLDER"]))
+        if not os.path.exists(f"../results/{self.agents[0].GE_params['LOG_FOLDER']}"):
+            os.makedirs(f"../results/{self.agents[0].GE_params['LOG_FOLDER']}")
 
         file_formatter = logging.Formatter("%(levelname)s:%(message)s")
         file_handler = logging.FileHandler(
-            filename="../results/{}/backend".format(self.agents[0].GE_params["LOG_FOLDER"]))
+            filename=f"../results/{self.agents[0].GE_params['LOG_FOLDER']}/backend")
         file_handler.setLevel(self.logger.level)
         file_handler.setFormatter(file_formatter)
 
@@ -82,8 +82,7 @@ class Backend(threading.Thread):
 
         if not pos_ok:
             raise ValueError(
-                "Object {} of radius {} cannot be placed at {} due to occupancy.".format(obj.type.value, obj.radius,
-                                                                                         position))
+                f"Object {obj.type.value} of radius {obj.radius} cannot be placed at {position} due to occupancy.")
         for r in range(position[0] - obj.radius, position[0] + obj.radius + 1):
             for c in range(position[1] - obj.radius, position[1] + obj.radius + 1):
                 if r < 0 or c < 0 or r >= self.board_model.dimension or c >= self.board_model.dimension:
@@ -160,12 +159,12 @@ class TestBackend(Backend):
         for line in self.food_dropped_history:
             self.logger.debug("{},{},{}".format(*line))
             number_of_food_inside_base += 1 if line[-1] else 0  # line[-1] = dropped inside base?
-        self.logger.debug("[FOOD] Overall food inside base: {}".format(number_of_food_inside_base))
+        self.logger.debug(f"[FOOD] Overall food inside base: {number_of_food_inside_base}")
 
         self.logger.debug("[FOOD] Food picked (agent, agent_position, food_position):")
         for line in self.food_picked_history:
             self.logger.debug("{},{},{}".format(*line))
-        self.logger.debug("[FOOD] Overall food picked: {}".format(len(self.food_picked_history)))
+        self.logger.debug(f"[FOOD] Overall food picked: {len(self.food_picked_history)}")
 
         # Overall fitness
         self.logger.debug("[FITNESS] Fitness functions over the steps (avg, best)")
@@ -182,7 +181,7 @@ class TestBackend(Backend):
     def run_wrapper(self):
         cnt = 1
         self.setup()
-        self.logger.debug("Number of agents: {}".format(len(self.agents)))
+        self.logger.debug(f"Number of agents: {len(self.agents)}")
         while True:
             if self.end:
                 return
@@ -195,7 +194,7 @@ class TestBackend(Backend):
             if not self.stop:
                 if self.step:
                     self.stop = True
-                self.logger.debug("[S{}] Step number {}".format(cnt, cnt))
+                self.logger.debug(f"[S{cnt}] Step number {cnt}")
                 step_start_time = time.perf_counter()
 
                 # Stats
@@ -205,17 +204,17 @@ class TestBackend(Backend):
                 avg_fitness = sum(fitnesses) / len(fitnesses)
                 self.fitness_history.append((avg_fitness, best_fitness))
                 self.logger.debug(
-                    "[BST_F] Best fitness at the start: {} ({})".format(best_fitness, self.agents[idx_best]))
-                self.logger.debug("[AVG_F] Average fitness at the start: {}".format(avg_fitness))
+                    f"[BST_F] Best fitness at the start: {best_fitness} ({self.agents[idx_best]})")
+                self.logger.debug(f"[AVG_F] Average fitness at the start: {avg_fitness}")
                 number_of_food_inside_base = len([line for line in self.food_dropped_history if line[-1]])
-                self.logger.debug("[FOOD] Overall food dropped: {}".format(len(self.food_dropped_history)))
-                self.logger.debug("[FOOD] Overall food inside base: {}".format(number_of_food_inside_base))
-                self.logger.debug("[FOOD] Overall food picked: {}".format(len(self.food_picked_history)))
+                self.logger.debug(f"[FOOD] Overall food dropped: {len(self.food_dropped_history)}")
+                self.logger.debug(f"[FOOD] Overall food inside base: {number_of_food_inside_base}")
+                self.logger.debug(f"[FOOD] Overall food picked: {len(self.food_picked_history)}")
 
                 if not self.deterministic:
                     random.shuffle(
                         self.agents)  # change order every round to simulate non deterministic order of action for every agent
-                    self.logger.debug("Agents order for this step: {}".format([a.name[-1] for a in self.agents]))
+                    self.logger.debug(f"Agents order for this step: {[a.name[-1] for a in self.agents]}")
                 for agent in self.agents:
                     if agent.name == "agent0":
                         pass  # NOTE just a place to control and observe one agent
@@ -223,7 +222,7 @@ class TestBackend(Backend):
                     self.gui.update(self.board_model)
                 step_end_time = time.perf_counter()
                 duration = step_end_time - step_start_time
-                self.logger.debug("[TIME] Step {} took {} s".format(cnt, duration))
+                self.logger.debug(f"[TIME] Step {cnt} took {duration} s")
                 if duration < 0.2:  # NOTE Arbitrary value to make the simulation reasonably slow
                     time.sleep(0.2 - duration)
                 self.logger.info("---------------------------------------")
@@ -237,11 +236,11 @@ class TestBackend(Backend):
     def pick_up_req(self, agent, pos):
         tile = self.board_model.tiles[pos[0]][pos[1]]
         resp = PickUpResp(agent.name, None)
-        self.logger.debug("[PCK] {} picks {} at {}".format(agent.name, tile.object, pos))
+        self.logger.debug(f"[PCK] {agent.name} picks {tile.object} at {pos}")
 
         if tile and tile.object:
             if tile.type == ObjectType.HUB:
-                raise TypeError("Agent at {} wants to grab hub at {}".format(agent.position, tile.position))
+                raise TypeError(f"Agent at {agent.position} wants to grab hub at {tile.position}")
 
             resp = PickUpResp(agent.name, tile.object)
             tile.remove_object(tile.object)
@@ -252,12 +251,12 @@ class TestBackend(Backend):
         resp = DropResp(agent.name, dropped=False)
         item_type = req.item_type
         pos = req.position
-        self.logger.debug("[DRP] {} drops {} at {}".format(agent.name, item_type.value, pos))
+        self.logger.debug(f"[DRP] {agent.name} drops {item_type.value} at {pos}")
         cnd_tile_occupied = self.board_model.tiles[pos[0]][pos[1]].occupied
         cnd_food_to_hub = self.board_model.tiles[pos[0]][pos[1]].type == ObjectType.HUB and item_type == ObjectType.FOOD
         if not cnd_tile_occupied:
             if item_type == ObjectType.FOOD:
-                new_object = FoodSource(name="food_dropped_by_{}".format(agent.name), radius=0)
+                new_object = FoodSource(name=f"food_dropped_by_{agent.name}", radius=0)
                 new_object.set_place(pos, self.board_model)
                 resp.dropped = True
             else:
@@ -332,7 +331,7 @@ class TestBackend(Backend):
 
         # CHECKS whether the movement is valid
         if new_position[0] < 0 or new_position[1] < 0 or new_position[0] >= self.board_model.dimension or new_position[1] >= self.board_model.dimension:
-            raise RuntimeError("Attempted to move outside border (from {} to {}".format(old_position, new_position))
+            raise RuntimeError(f"Attempted to move outside border (from {old_position} to {new_position}")
         if compute_distance(old_position, new_position) > agent.max_speed:
             raise ValueError("Desired distance greater than max speed")
         if list(old_position) != list(agent.position):
@@ -345,9 +344,9 @@ class TestBackend(Backend):
             agent_placed = self.board_model.tiles[new_position[0]][new_position[1]].place_object(agent)
             if agent_placed:
                 resp.position = new_position
-                self.logger.debug("{} moved from {} to {}".format(agent.name, old_position, new_position))
+                self.logger.debug(f"{agent.name} moved from {old_position} to {new_position}")
             else:
-                raise RuntimeError("Agent {} not placed in desired location".format(agent.name))
+                raise RuntimeError(f"Agent {agent.name} not placed in desired location")
         else:
             resp.position = agent.position
 

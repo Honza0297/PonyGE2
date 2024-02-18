@@ -94,11 +94,11 @@ class EvoAgent:
 
     def setup_logging(self):
         # Prepare logger - for stderr and file
-        if not os.path.exists("../results/{}".format(self.GE_params["LOG_FOLDER"])):
-            os.makedirs("../results/{}".format(self.GE_params["LOG_FOLDER"]))
+        if not os.path.exists(f"../results/{self.GE_params['LOG_FOLDER']}"):
+            os.makedirs(f"../results/{self.GE_params['LOG_FOLDER']}")
 
         file_formatter = logging.Formatter("%(levelname)s:%(message)s")
-        file_handler = logging.FileHandler(filename="../results/{}/{}".format(self.GE_params["LOG_FOLDER"], self.name))
+        file_handler = logging.FileHandler(filename=f"../results/{self.GE_params['LOG_FOLDER']}/{self.name}")
         file_handler.setLevel(self.logger.level)
         file_handler.setFormatter(file_formatter)
 
@@ -115,7 +115,7 @@ class EvoAgent:
         """
         How agent is printed.
         """
-        return "Agent {} at {}".format(self.name, self.position)
+        return f"Agent {self.name} at {self.position}"
 
     def setup(self):
         self.init_GE()
@@ -156,9 +156,9 @@ class EvoAgent:
         if fitnesses:
             avg_fitness = sum(fitnesses) / len(fitnesses)
             avg_nonzero_fitness = 0 if not non_zero_fitnesses else (sum(fitnesses) / len(non_zero_fitnesses))
-            self.logger.debug("[LST_F] List of fitness values: {}.".format(fitnesses))
-            self.logger.debug("[AVG_F] Average fitness (incl. invalids): {}".format(avg_fitness))
-            self.logger.debug("[AVG_F] Average fitness (excl. invalids): {}".format(avg_nonzero_fitness))
+            self.logger.debug(f"[LST_F] List of fitness values: {fitnesses}.")
+            self.logger.debug(f"[AVG_F] Average fitness (incl. invalids): {avg_fitness}")
+            self.logger.debug(f"[AVG_F] Average fitness (excl. invalids): {avg_nonzero_fitness}")
 
         #  Assign the best genome to the agent
         self.individuals = individuals
@@ -204,11 +204,11 @@ class EvoAgent:
         self.steps += 1
         self.steps_without_evolution += 1
         self.position_history.add(tuple(self.position))
-        self.logger.info("[S{}] Step {}".format(self.steps, self.steps))
-        self.logger.debug("[POS] Position: {}".format(self.position))
+        self.logger.info(f"[S{self.steps}] Step {self.steps}")
+        self.logger.debug(f"[POS] Position: {self.position}")
         self.logger.debug(
-            "[SWE{}] Step without evolution {}".format(self.steps_without_evolution, self.steps_without_evolution))
-        self.logger.debug("[F] Current fitness at the start: {}".format(self.individual.fitness))
+            f"[SWE{self.steps_without_evolution}] Step without evolution {self.steps_without_evolution}")
+        self.logger.debug(f"[F] Current fitness at the start: {self.individual.fitness}")
         # actually sense
         resp = self.backend.sense_object_neighbourhood(self)
         self.neighbourhood.set_neighbourhood(resp.neighbourhood)
@@ -226,11 +226,11 @@ class EvoAgent:
 
         # ACT()
         # actually act
-        self.logger.debug("[TREE] Tree: {}".format(py_trees.display.ascii_tree(self.bt_wrapper.behaviour_tree.root)))
-        self.logger.debug("[GENOME] {}".format(self.individual.genome))
+        self.logger.debug(f"[TREE] Tree: {py_trees.display.ascii_tree(self.bt_wrapper.behaviour_tree.root)}")
+        self.logger.debug(f"[GENOME] {self.individual.genome}")
         self.bt_wrapper.behaviour_tree.tick()
         self.compute_fitness()
-        self.logger.debug("[GOAL] Goal is: {}".format(self.goal))
+        self.logger.debug(f"[GOAL] Goal is: {self.goal}")
 
         # UPDATE()
         # If there is enough genomes to perform evolution...
@@ -272,9 +272,9 @@ class EvoAgent:
             evaluate_fitness(individuals, agent=self)
             self.choose_new_individual(individuals)
 
-        self.logger.debug("[F] Current fitness: {}".format(self.individual.fitness))
+        self.logger.debug(f"[F] Current fitness: {self.individual.fitness}")
         duration = time.perf_counter() - start_time
-        self.logger.debug("[TIME] Step took {} s".format(duration))
+        self.logger.debug(f"[TIME] Step took {duration} s")
 
     def ask_for_genome(self):
         """
@@ -300,7 +300,7 @@ class EvoAgent:
         """
         Exploration fitness: number of locations/tiles visited
         """
-        self.logger.debug("[HISTORY] Position history: {}".format(self.position_history))
+        self.logger.debug(f"[HISTORY] Position history: {self.position_history}")
         return max(len(self.position_history), 0)
 
     def compute_BT_feedback_fitness(self):
@@ -378,7 +378,7 @@ class EvoAgent:
                 # Preferably drop to hub
                 for tile in tiles_next_to:
                     if tile and tile.occupied and tile.object.type == ObjectType.HUB:
-                        self.logger.debug("[FH] Dropping food to HUB at {}".format(tile.position))
+                        self.logger.debug(f"[FH] Dropping food to HUB at {tile.position}")
                         drop_position = tile.position
 
                 if not drop_position:  # no hub nearby

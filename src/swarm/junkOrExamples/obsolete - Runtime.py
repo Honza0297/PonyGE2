@@ -68,10 +68,10 @@ class Runtime:
         logging.debug("==========================")
         logging.debug("Setting up the simulation")
         logging.debug(
-            """Board_size: {}
-           Hole_chance: {}
-           Headless: {}
-        """.format(self.board.dimension, self.hole_chance, self.headless))
+            f"""Board_size: {self.board.dimension}
+           Hole_chance: {self.hole_chance}
+           Headless: {self.headless}
+        """)
         logging.debug("==========================")
 
 
@@ -82,8 +82,8 @@ class Runtime:
         """
         self.dl.new(self.steps)
         logging.debug("----------")
-        logging.debug("Step: {}".format(self.steps))
-        logging.debug("Holes: {}".format(self.holes))
+        logging.debug(f"Step: {self.steps}")
+        logging.debug(f"Holes: {self.holes}")
         self.generate_holes()
         self.dl.current.num_holes = len(self.holes)
         for agent in self.agents:
@@ -173,7 +173,7 @@ class Runtime:
             self.board.tiles[curr[0]][curr[1] + 1].update()
             new_pos[1] += 1
 
-        logging.debug("(runtime) Agent has notified about move from {} to the {}.".format(curr, direction))
+        logging.debug(f"(runtime) Agent has notified about move from {curr} to the {direction}.")
 
         if tuple(new_pos) in self.holes:
             self.dl.current.hole_deleted = True

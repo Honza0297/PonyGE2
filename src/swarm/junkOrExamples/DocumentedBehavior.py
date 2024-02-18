@@ -54,7 +54,7 @@ class DocumentedBehavior(py_trees.behaviour.Behaviour):
           - A parallel checking for a valid policy configuration after
             children have been added or removed
         """
-        self.logger.debug("  %s [Foo::setup()]" % self.name)
+        self.logger.debug(f"  {self.name} [Foo::setup()]")
 
     def initialise(self):
         """
@@ -66,7 +66,7 @@ class DocumentedBehavior(py_trees.behaviour.Behaviour):
           Any initialisation you need before putting your behaviour
           to work.
         """
-        self.logger.debug("  %s [Foo::initialise()]" % self.name)
+        self.logger.debug(f"  {self.name} [Foo::initialise()]")
 
     def update(self):
         """
@@ -78,7 +78,7 @@ class DocumentedBehavior(py_trees.behaviour.Behaviour):
           - Set a feedback message
           - return a py_trees.common.Status.[RUNNING, SUCCESS, FAILURE]
         """
-        self.logger.debug("  %s [Foo::update()]" % self.name)
+        self.logger.debug(f"  {self.name} [Foo::update()]")
         ready_to_make_a_decision = random.choice([True, False])
         decision = random.choice([True, False])
         if not ready_to_make_a_decision:
@@ -97,7 +97,7 @@ class DocumentedBehavior(py_trees.behaviour.Behaviour):
             - SUCCESS || FAILURE : your behaviour's work cycle has finished
             - INVALID : a higher priority branch has interrupted, or shutting down
         """
-        self.logger.debug("  %s [Foo::terminate().terminate()][%s->%s]" % (self.name, self.status, new_status))
+        self.logger.debug(f"  {self.name} [Foo::terminate().terminate()][{self.status}->{new_status}]")
 
 
 class MoveTowards(py_trees.behaviour.Behaviour):

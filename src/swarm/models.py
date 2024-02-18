@@ -65,4 +65,4 @@ class TileModel:
         return True
 
     def __repr__(self):
-        return "Tile at {}, occupied: {}, object: {}".format(self.position, self.occupied, self.object)
+        return f"Tile at {self.position}, occupied: {self.occupied}, object: {self.object}"
