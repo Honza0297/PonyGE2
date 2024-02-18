@@ -7,24 +7,24 @@ from typing import Dict, Any, Optional
 
 # BT
 import py_trees
-from src.swarm.bt import BTConstruct
+from swarm.bt import BTConstruct
 
 # simulation
-from src.swarm.models import TileModel
-from src.swarm.neighbourhood import Neighbourhood
-from src.swarm.packets import *
-from src.swarm.types import ObjectType
+from swarm.models import TileModel
+from swarm.neighbourhood import Neighbourhood
+from swarm.packets import *
+from swarm.types import ObjectType
 
 # GE
-from src.swarm.default_params import default_params
-import src.algorithm.parameters
-from src.fitness.evaluation import evaluate_fitness
-from src.operators.crossover import crossover
-from src.operators.initialisation import initialisation
-from src.operators.mutation import mutation
-from src.operators.replacement import replacement
-from src.operators.selection import selection
-from src.representation.individual import Individual
+from swarm.default_params import default_params
+import algorithm.parameters
+from fitness.evaluation import evaluate_fitness
+from operators.crossover import crossover
+from operators.initialisation import initialisation
+from operators.mutation import mutation
+from operators.replacement import replacement
+from operators.selection import selection
+from representation.individual import Individual
 
 # Other
 from PyQt5 import QtCore
@@ -123,14 +123,14 @@ class EvoAgent:
 
     def init_GE(self):  # noqa
         # Init GE parameters
-        src.algorithm.parameters.load_params(self.param_file, agent=self)
-        src.algorithm.parameters.set_params(None, create_files=True, agent=self)
+        algorithm.parameters.load_params(self.param_file, agent=self)
+        algorithm.parameters.set_params(None, create_files=True, agent=self)
 
         for key in self.GE_params.keys():
             val = self.GE_params[key]
             try:
                 val = eval(val)
-            except TypeError:  # If error arises here, change TypeError to Exception
+            except Exception:  # If error arises here, change TypeError to Exception
                 pass
             self.GE_params[key] = val
 

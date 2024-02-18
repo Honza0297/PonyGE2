@@ -1,6 +1,6 @@
 import math
 
-from src.fitness.base_ff_classes.base_ff import base_ff
+from fitness.base_ff_classes.base_ff import base_ff
 import random
 import xml.etree.ElementTree as ET
 

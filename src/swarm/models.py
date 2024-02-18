@@ -1,6 +1,6 @@
 
 from PyQt5 import QtCore
-from src.swarm.types import ObjectType
+from swarm.types import ObjectType
 
 
 class BoardModel:

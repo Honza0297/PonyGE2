@@ -1,5 +1,5 @@
-from src.swarm.types import Direction, ObjectType
-from src.swarm.math import  compute_distance
+from swarm.types import Direction, ObjectType
+from swarm.math import  compute_distance
 
 class Neighbourhood:
     def __init__(self, neighbourhood=None):

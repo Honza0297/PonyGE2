@@ -7,12 +7,12 @@ import logging
 import threading
 from typing import Optional
 
-from src.swarm.agent import EvoAgent
-from src.swarm.math import compute_distance
-from src.swarm.models import BoardModel, TileModel
-from src.swarm.packets import *
-from src.swarm.objects import *
-from src.swarm.types import ObjectType
+from swarm.agent import EvoAgent
+from swarm.math import compute_distance
+from swarm.models import BoardModel, TileModel
+from swarm.packets import *
+from swarm.objects import *
+from swarm.types import ObjectType
 import random
 
 GENOME = [79242, 75288, 93946, 83682, 80172, 11178, 75654, 24507, 16904, 10288, 17401, 75438, 702, 37977, 15383, 32074, 97093, 85682, 80665, 6155, 92769, 19285, 19954, 8903, 52532, 16624, 72056, 20582, 50856, 52945, 95519, 77299, 34370, 19326, 48349, 70714, 51384, 8460, 32414, 52821, 36896, 43539, 2803, 12593, 78952, 84255, 90838, 86875, 44221, 59373]

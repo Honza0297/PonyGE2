@@ -5,7 +5,7 @@ from PyQt5.QtCore import pyqtSignal
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 
-from src.swarm.models import BoardModel
+from swarm.models import BoardModel
 
 
 class QBoard(QWidget):
@@ -49,7 +49,10 @@ class QTile(QWidget):
         self.tile_model = None
 
     def print_info(self, event):
-        print(self.tile_model) # TODO
+        dlg = QMessageBox(self)
+        dlg.setWindowTitle("Tile info")
+        dlg.setText(f"{self.tile_model}")
+        dlg.exec()
 
     def set_image(self, img, img_type):
         self.image = img

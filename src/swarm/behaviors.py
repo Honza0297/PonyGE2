@@ -3,17 +3,22 @@ In every behavior, only setup and update methods are important.
 setup: setup basic things needed for the behavior.
 update: performed every time a behavior is ticked (activated).
 """
+from __future__ import annotations
+
 from typing import Optional, List, Tuple
+from typing import TYPE_CHECKING
 
 import py_trees
 from py_trees.composites import Sequence, Selector
 import random
 
-from src.swarm.math import *
-from src.swarm.models import TileModel
-from src.swarm.types import ObjectType, Direction
+from swarm.math import *
+from swarm.models import TileModel
+from swarm.types import ObjectType, Direction
 from py_trees.decorators import Inverter
-from src.swarm.agent import EvoAgent
+
+if TYPE_CHECKING:
+    from swarm.agent import EvoAgent
 
 class IsVisitedBefore(py_trees.behaviour.Behaviour):
     """
@@ -52,7 +57,6 @@ class ObjectAtDist(py_trees.behaviour.Behaviour):
     If dist = 1, then the agent is able to pick up the object.
     """
     def __init__(self, name):
-        from src.swarm.agent import EvoAgent  # because of type annotation
         super(ObjectAtDist, self).__init__(name)
         self.distance = None
         self.item_type = None

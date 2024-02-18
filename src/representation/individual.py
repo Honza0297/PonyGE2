@@ -1,8 +1,8 @@
 import numpy as np
 
-from src.algorithm.mapper import mapper
+from algorithm.mapper import mapper
 #from algorithm.parameters import params
-from src.representation.code_tree import CodeTree
+from representation.code_tree import CodeTree
 
 
 class Individual(object):

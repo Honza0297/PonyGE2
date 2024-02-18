@@ -1,7 +1,7 @@
 import random
 from math import degrees, asin, sqrt
 
-from src.swarm.types import Direction
+from swarm.types import Direction
 
 MAX_DISTANCE = -1
 

@@ -4,7 +4,7 @@ import numpy as np
 #from algorithm.parameters import params
 from representation.tree import Tree
 from utilities.representation.python_filter import python_filter
-from src.representation.code_tree import CodeTree, NonTerminal, Terminal
+from representation.code_tree import CodeTree, NonTerminal, Terminal
 
 
 def mapper(genome, tree, agent):

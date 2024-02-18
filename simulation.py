@@ -6,7 +6,7 @@ import py_trees.trees
 from PyQt5.QtWidgets import QApplication
 from py_trees.composites import Sequence, Selector
 
-from src.swarm.behaviors import *
+#from src.swarm.behaviors import *
 from src.swarm.backend import TestBackend
 from src.swarm.gui import SimulationWindow
 import  cProfile

@@ -23,8 +23,8 @@ from swarms.behaviors.sbehaviors import (       # noqa: F401
     PheromoneExists, DummyNode
     )
 """
-import src.swarm.types as types
-from src.swarm.behaviors import ( # noqa 401
+import swarm.types as types
+from swarm.behaviors import ( # noqa 401
     IsVisitedBefore,
     ObjectAtDist as NeighbourObjects,
     IsCarrying,

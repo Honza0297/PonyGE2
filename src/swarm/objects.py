@@ -1,6 +1,6 @@
-from src.swarm.types import ObjectType
-#from src.swarm.models import TileModel, BoardModel
-from src.swarm.math import compute_distance, compute_area
+from swarm.types import ObjectType
+#from swarm.models import TileModel, BoardModel
+from swarm.math import compute_distance, compute_area
 from PyQt5 import QtCore
 
 

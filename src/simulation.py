@@ -1,3 +1,5 @@
+#! /usr/bin/python
+
 import logging
 import random
 import sys
@@ -6,9 +8,8 @@ import py_trees.trees
 from PyQt5.QtWidgets import QApplication
 from py_trees.composites import Sequence, Selector
 
-from src.swarm.behaviors import *
-from src.swarm.backend import TestBackend
-from src.swarm.gui import SimulationWindow
+from swarm.backend import TestBackend
+from swarm.gui import SimulationWindow
 import  cProfile
 
 NUM_OF_AGENS = 100

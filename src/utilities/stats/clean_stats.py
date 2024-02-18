@@ -1,5 +1,5 @@
 #from algorithm.parameters import params
-from src.stats.stats import stats
+from stats.stats import stats
 
 
 def clean_stats(agent=None):
