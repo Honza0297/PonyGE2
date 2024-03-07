@@ -46,7 +46,7 @@ class EvoAgent:
 
         # Simulation
         self.position = None
-        self.position_history = set()  # Places which agent did visit = was next to it. Do not reset after behavior change
+        self.position_history = dict()  # Places which agent did visit = was onto them. Reset after genome change
         self.places_visited = {ObjectType.FOOD: False, ObjectType.HUB: True}
         # according to aadesh, agents should be memory full(?)
         self.local_map: Optional[list[list[TileModel | None]]] = [] # TODO make it full object with helping functions etc
@@ -81,6 +81,7 @@ class EvoAgent:
         self.individuals = list()
         self.exchanged_individuals = dict()
         self.num_of_truly_exchanged_individuals = 0
+        self.exploration_fitness_coeff = 0.9
 
         # Logging
         self.logger = logging.getLogger(name)
@@ -168,7 +169,7 @@ class EvoAgent:
             self.individual = self.individuals[0]  # first = best
             # self.places_visited = {ObjectType.FOOD: False, ObjectType.HUB: True}
             # self.local_map = list()
-            self.position_history = set()
+            self.position_history = dict()
         else:
             self.logger.debug("[IND_CHG] Current individual not changed.")
 
@@ -203,7 +204,7 @@ class EvoAgent:
         # SENSE()
         self.steps += 1
         self.steps_without_evolution += 1
-        self.position_history.add(tuple(self.position))
+        self.position_history[tuple(self.position)] = self.steps
         self.logger.info(f"[S{self.steps}] Step {self.steps}")
         self.logger.debug(f"[POS] Position: {self.position}")
         self.logger.debug(
@@ -301,7 +302,11 @@ class EvoAgent:
         Exploration fitness: number of locations/tiles visited
         """
         self.logger.debug(f"[HISTORY] Position history: {self.position_history}")
-        return max(len(self.position_history), 0)
+        exploration_fitness = 0
+        for k in self.position_history.keys():
+            offset = self.steps - self.position_history[k]
+            exploration_fitness += self.exploration_fitness_coeff ** offset
+        return exploration_fitness
 
     def compute_BT_feedback_fitness(self):
         """

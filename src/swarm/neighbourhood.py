@@ -102,3 +102,63 @@ class Neighbourhood:
                     next_tile = self.neighbourhood[curr_pos[0]][curr_pos[1] + 1]  # set init tile
 
         return next_tile
+
+class LocalMap: # TODO check if this is OK
+    def __init__(self, size, center):
+        self.size = size
+        self.center = center
+        self.map = [[None for _ in range(size)] for _ in range(size)]
+        self.objects = {t: [] for t in (ObjectType.AGENT, ObjectType.HUB, ObjectType.FOOD)}
+
+    def __str__(self):
+        s = "  "
+        for i in range(len(self.map)):
+            s += str(i) + (" " if i < 10 else "")
+        s += "\n"
+        cnt_r = 0
+        for r in self.map:
+            s += str(cnt_r) + (" " if cnt_r < 10 else "")
+            cnt_r += 1
+            for tile in r:
+                if not tile:
+                    s += "X" + " "
+                else:
+                    s += str(tile.type.value) + " "
+            s += "\n"
+        return s
+
+    def set_tile(self, tile, pos):
+        self.map[pos[0]][pos[1]] = tile
+
+    def get(self, obj_type: ObjectType):
+        cells_with_object = list()
+        for row in self.map:
+            for cell in row:
+                if cell and cell.occupied:
+                    if cell.object.type == obj_type:
+                        cells_with_object.append(cell)
+
+        return len(cells_with_object) > 0, cells_with_object
+
+    def get_objects(self, object_type: ObjectType, max_distance=None):
+        """
+        Returns list of objects of given type that are no farther than max_distance,
+        """
+        if not max_distance:
+            max_distance = self.size
+        return [obj for obj in self.objects[object_type] if obj[1] <= max_distance]
+
+    def get_relative_pos(self, abs_pos):
+        offset_r = self.map[self.center[0]][self.center[1]].position[0] - self.center[0]
+        offset_c = self.map[self.center[0]][self.center[1]].position[1] - self.center[1]
+
+        return abs_pos[0] - offset_r, abs_pos[1] - offset_c
+
+    def get_next_tile_in_dir(self, curr_pos, direction):
+        next_tile = None
+        match direction:
+            case Direction.UP:
+                if curr_pos[0] == 0:  # top row, cannot go up
+                    next_tile = None
+                else:
+                    next_tile

@@ -1,5 +1,5 @@
 import enum
-
+from typing import List, Tuple, Union
 
 class ObjectType(enum.Enum):
     AGENT = "A"
@@ -10,7 +10,7 @@ class ObjectType(enum.Enum):
     NOTYPE = "X"
 
     @staticmethod
-    def str2enum(item):
+    def str2enum(item: str) -> 'ObjectType':
         item = item.lower()
         retval: ObjectType
         match item:
@@ -39,7 +39,7 @@ class Direction(enum.Enum):
     RIGHT = "R"
 
     @staticmethod
-    def broad_direction(direction):
+    def broad_direction(direction: 'Direction') -> List['Direction']:
         ret = ()
         match direction:
             case Direction.UP:
@@ -53,7 +53,7 @@ class Direction(enum.Enum):
         return list(ret)
 
     @staticmethod
-    def reverse(direction):
+    def reverse(direction: 'Direction') -> 'Direction':
         ret = direction
         match direction:
             case Direction.UP:
@@ -65,7 +65,4 @@ class Direction(enum.Enum):
             case Direction.LEFT:
                 ret = Direction.RIGHT
         return ret
-
-
-class BlackboardKeys(enum.Enum):
-    NEAR_OBJECT = "nearObject"
+    
