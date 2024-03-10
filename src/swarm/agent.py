@@ -14,6 +14,7 @@ from swarm.models import TileModel
 from swarm.neighbourhood import Neighbourhood
 from swarm.packets import *
 from swarm.types import ObjectType
+from swarm.backend import TestBackend
 
 # GE
 from swarm.default_params import default_params
@@ -64,7 +65,7 @@ class EvoAgent:
         self.neighbourhood = Neighbourhood()
         self.next_step = None
         self.dropping_item = None  # item that should be dropped
-        self.backend = None
+        self.backend: TestBackend = None
         self.steps = 0
         self.steps_without_evolution = 0
         self.heading = None
@@ -349,10 +350,6 @@ class EvoAgent:
                 else:
                     continue
 
-                """if self.neighbourhood.neighbourhood[center[0] + r][center[1] + c] and \
-                        self.neighbourhood.neighbourhood[center[0] + r][center[1] + c].occupied:
-                    self.places_visited[
-                        self.neighbourhood.neighbourhood[center[0] + r][center[1] + c].object.type] = True"""
 
     def set_position(self, pos):
         self.position = list(pos)

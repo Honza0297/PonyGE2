@@ -39,8 +39,8 @@ class swarm_fitness_diversity(base_ff):
         self.sorted_values = list(self.execution.values())
         self.sorted_values.sort()
         new_execution = dict()
-        sorted_values_sum = sum(self.sorted_values)
-        behavior_len = len(self.execution_behaviors)
+        sorted_values_sum = sum(self.sorted_values) # pocet celkovych akcnich uzlu
+        behavior_len = len(self.execution_behaviors) # pocet moznosti
         divisor = math.ceil(sorted_values_sum / behavior_len) * behavior_len
         if self.sorted_keys == self.execution_behaviors and \
                 sorted_values_sum % behavior_len == 0 and \
