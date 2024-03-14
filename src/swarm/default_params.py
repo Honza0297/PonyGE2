@@ -5,7 +5,7 @@ hostname = gethostname().split('.')
 machine_name = hostname[0]
 
 default_params = {
-    'LOG_FOLDER' : str(datetime.datetime.now()),
+    'LOG_FOLDER' : str(datetime.datetime.now()).replace(" ", "_").replace(":", "-"),
     # Set default step and search loop functions
     'SEARCH_LOOP': 'search_loop',
     'STEP': 'step',
