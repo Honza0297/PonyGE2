@@ -139,12 +139,12 @@ def generate_folders_and_files(agent=None):
         makedirs(agent.GE_params['FILE_PATH'], exist_ok=True)
 
     if not path.isdir(path.join(agent.GE_params['FILE_PATH'],
-                                str(agent.GE_params['TIME_STAMP']))):
+                                str(agent.GE_params['LOG_FOLDER']))):
         makedirs(path.join(agent.GE_params['FILE_PATH'],
-                           str(agent.GE_params['TIME_STAMP'])), exist_ok=True)
+                           str(agent.GE_params['LOG_FOLDER'])), exist_ok=True)
 
     agent.GE_params['FILE_PATH'] = path.join(agent.GE_params['FILE_PATH'],
-                                    str(agent.GE_params['TIME_STAMP']))
+                                    str(agent.GE_params['LOG_FOLDER']))
 
     save_params_to_file(agent=agent)
 

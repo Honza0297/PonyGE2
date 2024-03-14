@@ -1,9 +1,9 @@
-# General
+    # General
 import logging
 import os
 import random
 import time
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, TYPE_CHECKING
 
 # BT
 import py_trees
@@ -11,10 +11,9 @@ from swarm.bt import BTConstruct
 
 # simulation
 from swarm.models import TileModel
-from swarm.neighbourhood import Neighbourhood
+from swarm.neighbourhood import Neighbourhood, LocalMap
 from swarm.packets import *
 from swarm.types import ObjectType
-from swarm.backend import TestBackend
 
 # GE
 from swarm.default_params import default_params
@@ -29,7 +28,10 @@ from representation.individual import Individual
 
 # Other
 from PyQt5 import QtCore
+import math
 
+if TYPE_CHECKING:
+    from swarm.backend import TestBackend
 
 class EvoAgent:
     """"
@@ -48,9 +50,8 @@ class EvoAgent:
         # Simulation
         self.position = None
         self.position_history = dict()  # Places which agent did visit = was onto them. Reset after genome change
-        self.places_visited = {ObjectType.FOOD: False, ObjectType.HUB: True}
         # according to aadesh, agents should be memory full(?)
-        self.local_map: Optional[list[list[TileModel | None]]] = [] # TODO make it full object with helping functions etc
+        self.local_map: LocalMap = None # TODO make it full object with helping functions etc
 
         self.goal = None
         self.objects_of_interest = {}
@@ -82,7 +83,7 @@ class EvoAgent:
         self.individuals = list()
         self.exchanged_individuals = dict()
         self.num_of_truly_exchanged_individuals = 0
-        self.exploration_fitness_coeff = 0.9
+        self.exploration_fitness_coeff = {"a":2, "b":0.3}
 
         # Logging
         self.logger = logging.getLogger(name)
@@ -122,6 +123,7 @@ class EvoAgent:
     def setup(self):
         self.init_GE()
         self.setup_logging()
+        self.local_map = LocalMap(self, self.backend.board_model.dimension)
 
     def init_GE(self):  # noqa
         # Init GE parameters
@@ -152,6 +154,7 @@ class EvoAgent:
     def choose_new_individual(self, individuals):
         individuals.sort(reverse=True)
 
+        # Logging
         fitnesses = tuple(
             individual.fitness if (not individual.invalid and individual.fitness) else 0 for individual in individuals)
         non_zero_fitnesses = tuple(i for i in fitnesses if i)
@@ -161,6 +164,7 @@ class EvoAgent:
             self.logger.debug(f"[LST_F] List of fitness values: {fitnesses}.")
             self.logger.debug(f"[AVG_F] Average fitness (incl. invalids): {avg_fitness}")
             self.logger.debug(f"[AVG_F] Average fitness (excl. invalids): {avg_nonzero_fitness}")
+        ############
 
         #  Assign the best genome to the agent
         self.individuals = individuals
@@ -168,8 +172,6 @@ class EvoAgent:
             self.logger.debug("[IND_CHG] Current individual changed (fitness {} -> {})".format(
                 self.individual.fitness if self.individual else "nan", self.individuals[0].fitness))
             self.individual = self.individuals[0]  # first = best
-            # self.places_visited = {ObjectType.FOOD: False, ObjectType.HUB: True}
-            # self.local_map = list()
             self.position_history = dict()
         else:
             self.logger.debug("[IND_CHG] Current individual not changed.")
@@ -211,10 +213,14 @@ class EvoAgent:
         self.logger.debug(
             f"[SWE{self.steps_without_evolution}] Step without evolution {self.steps_without_evolution}")
         self.logger.debug(f"[F] Current fitness at the start: {self.individual.fitness}")
+        self.logger.debug(f"[G] Goal: {self.goal}")
+        self.logger.debug(f"[NS] Next step: {self.next_step}")
         # actually sense
         resp = self.backend.sense_object_neighbourhood(self)
         self.neighbourhood.set_neighbourhood(resp.neighbourhood)
-        self.update_local_map()
+        self.local_map.update(self.neighbourhood)
+        self.logger.debug(f"[NEIGH] Neighbourhood: {self.neighbourhood}")
+        self.logger.debug(f"[LM] Local map: {self.local_map}")
 
         # Try to exchange genomes
         agents_present, neighbouring_agent_cells = self.neighbourhood.get(ObjectType.AGENT)
@@ -235,49 +241,66 @@ class EvoAgent:
         self.logger.debug(f"[GOAL] Goal is: {self.goal}")
 
         # UPDATE()
-        # If there is enough genomes to perform evolution...
-        if self.num_of_truly_exchanged_individuals >= self.genotype_storage_threshold:
+        # If there is enough genomes to perform evolution AND current behavior was at least tried...
+        if self.num_of_truly_exchanged_individuals >= self.genotype_storage_threshold and self.steps_without_evolution > self.GE_params["MIN_STEPS_WITHOUT_EVOLUTION"]:
             self.steps_without_evolution = 0
             self.logger.debug("[EVO] Performing evolution step")
             individuals = [self.exchanged_individuals[k] for k in self.exchanged_individuals.keys() if
                            self.exchanged_individuals[k] is not None]
-
-            # NOTE: below is copied and slightly changed code from ponyge/step.py/step()
-            # no new individuals created, just parents chosen
-            parents = selection(individuals, self)
-
-            # Crossover parents and add to the new population.
-            cross_pop = crossover(parents, self)
-
-            # Mutate the new population.
-            new_pop = mutation(cross_pop, self)
-
-            # NOTE: Here, attribute grammar gets involved
-            for ind in new_pop:
-                ind.perform_attribute_check()
-
-            # Evaluate  the fitness of the new population.
-            new_pop = evaluate_fitness(new_pop, self)
-
-            # Replace the old population with the new population.
-            individuals = replacement(new_pop, self.individuals, self)
-
-            self.choose_new_individual(individuals)
+            # TODO do the individuals have their fitness functions?
+            self.individuals = individuals
+            self.evolution_step(individuals)
             self.logger.debug("[EVO] Evolution step finished")
         # else if evolution was not performed for too long...
         elif self.steps_without_evolution > self.GE_params["MAX_STEPS_WITHOUT_EVOLUTION"]:
             self.logger.debug("[EVO] Reached MAX_STEPS_WITHOUT_EVOLUTION ({}), reinitialising genome (exchanged "
-                              "genomes retained).".format(self.GE_params["MAX_STEPS_WITHOUT_EVOLUTIONA u "]))
+                              "genomes retained).".format(self.GE_params["MAX_STEPS_WITHOUT_EVOLUTION"]))
             self.steps_without_evolution = 0
 
-            individuals = initialisation(size=10, agent=self)  # size of the population = 10
-            evaluate_fitness(individuals, agent=self)
-            self.choose_new_individual(individuals)
-
+            individuals = [self.exchanged_individuals[k] for k in self.exchanged_individuals.keys() if
+                           self.exchanged_individuals[k] is not None]
+            # It does not need to be exactly POPULATION_SIZE, but it is a good start (we just need some number of valid individuals)
+            individuals += self._extend_population()
+            self.individuals = individuals
+            self.evolution_step(individuals)
+            
         self.logger.debug(f"[F] Current fitness: {self.individual.fitness}")
         duration = time.perf_counter() - start_time
         self.logger.debug(f"[TIME] Step took {duration} s")
 
+    def _extend_population(self):
+        new_individuals = initialisation(size=self.GE_params["POPULATION_SIZE"]-self.num_of_truly_exchanged_individuals, agent=self)
+        # Needing at least self.genotype_storage_threshold genomes to perform evolution:
+        new_individuals = evaluate_fitness(new_individuals, self)
+        valid_inds = [ind for ind in new_individuals if not ind.invalid]
+        while len(valid_inds) < self.genotype_storage_threshold:
+            new_individuals = [vi for vi in valid_inds] + initialisation(size=self.GE_params["POPULATION_SIZE"]-self.num_of_truly_exchanged_individuals, agent=self)
+            valid_inds = [ind for ind in new_individuals if not ind.invalid]
+        return valid_inds
+    
+    def evolution_step(self, individuals):
+        # NOTE: below is copied and slightly changed code from ponyge/step.py/step()
+        # no new individuals created, just parents chosen
+        parents = selection(individuals, self)
+
+        # Crossover parents and add to the new population.
+        cross_pop = crossover(parents, self)
+
+        # Mutate the new population.
+        new_pop = mutation(cross_pop, self)
+
+        # NOTE: Here, attribute grammar gets involved
+        for ind in new_pop:
+            ind.perform_attribute_check()
+
+        # Evaluate  the fitness of the new population.
+        new_pop = evaluate_fitness(new_pop, self)
+
+        # Replace the old population with the new population.
+        individuals = replacement(new_pop, self.individuals, self)
+
+        self.choose_new_individual(individuals)
+        
     def ask_for_genome(self):
         """
         This function is called by another agents trying to acquire this agent's genome
@@ -295,7 +318,7 @@ class EvoAgent:
         BT_feedback_fitness = self.compute_BT_feedback_fitness()
         self.individual.fitness = self.GE_params[
                                       "BETA"] * self.individual.fitness + exploration_fitness + BT_feedback_fitness
-        self.logger.debug("[FITNESS] EX: {}, BT: {}, sum: {}".format(exploration_fitness, BT_feedback_fitness,
+        self.logger.debug("[F] EX: {}, BT: {}, BETA*previous+current: {}".format(exploration_fitness, BT_feedback_fitness,
                                                                      self.individual.fitness))
 
     def compute_exploration_fitness(self):
@@ -304,11 +327,22 @@ class EvoAgent:
         """
         self.logger.debug(f"[HISTORY] Position history: {self.position_history}")
         exploration_fitness = 0
-        for k in self.position_history.keys():
-            offset = self.steps - self.position_history[k]
-            exploration_fitness += self.exploration_fitness_coeff ** offset
+        if self.GE_params["EXPLORATION_FITNESS_FUNCTION"] == "linear":
+            exploration_fitness = self._exploration_fitness_linear()
+        elif self.GE_params["EXPLORATION_FITNESS_FUNCTION"] == "exponential":
+            exploration_fitness = self._exploration_fitness_exponential()
+        else:
+            self.logger.error(f"Unknown exploration fitness function: {self.GE_params['EXPLORATION_FITNESS_FUNCTION']}")
         return exploration_fitness
 
+    def _exploration_fitness_linear(self):
+        """Exploration fitness: number of locations/tiles visited"""
+        return len(self.position_history)
+    
+    def _exploration_fitness_exponential(self):
+        """Exploration fitness: sum(a*e^(-steps_since_last_visit)*b)) across all visited locations/tiles"""
+        return sum([self.exploration_fitness_coeff["a"]*math.e ** -((self.steps - self.position_history[k])*self.exploration_fitness_coeff["b"]) for k in self.position_history.keys()])
+        
     def compute_BT_feedback_fitness(self):
         """
         details n fitness/swarm_diversity.py (or something like that) in PonyGE2
@@ -325,30 +359,14 @@ class EvoAgent:
         selectors_reward = sum([1 for sel in selectors if sel.status == py_trees.common.Status.SUCCESS])
         postcond_reward = sum([1 for pcond in postcond if pcond.status == py_trees.common.Status.SUCCESS])
 
-        return selectors_reward + postcond_reward
-
-    def update_local_map(self):
-        """
-        Zpracovani okoli - jinak receno, aktualizace lokalni mapy
-        """
-        if not self.local_map:
-            dim = self.backend.board_model.dimension
-            for r in range(dim):
-                self.local_map.append([None for c in range(dim)])
-        for r in range(self.neighbourhood.size):
-            for c in range(self.neighbourhood.size):
-                if self.neighbourhood.neighbourhood[r][c]:
-                    ar, ac = self.neighbourhood.neighbourhood[r][c].position  # absolute coordinates from local
-                    # We do not want to have agents it the map because they are moving often
-                    if (self.neighbourhood.neighbourhood[r][c].occupied and
-                            self.neighbourhood.neighbourhood[r][c].type == ObjectType.AGENT):
-                        continue
-                    self.local_map[ar][ac] = self.neighbourhood.neighbourhood[r][c]
-                    if False in self.places_visited.values() and self.neighbourhood.neighbourhood[r][c].occupied:
-                        self.places_visited[self.neighbourhood.neighbourhood[r][c].type] = True
-
-                else:
-                    continue
+        if self.GE_params["PENALTY"]:
+            selector_penalty = sum([-2 for sel in selectors if sel.status == py_trees.common.Status.FAILURE])
+            postcond_penalty = sum([-2 for pcond in postcond if pcond.status == py_trees.common.Status.FAILURE])
+        else:
+            selector_penalty = 0
+            postcond_penalty = 0
+        
+        return selectors_reward + postcond_reward + selector_penalty + postcond_penalty
 
 
     def set_position(self, pos):

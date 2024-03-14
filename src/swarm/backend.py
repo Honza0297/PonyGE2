@@ -45,6 +45,12 @@ class Backend(threading.Thread):
         if not os.path.exists(f"../results/{self.agents[0].GE_params['LOG_FOLDER']}"):
             os.makedirs(f"../results/{self.agents[0].GE_params['LOG_FOLDER']}")
 
+        try:
+            os.symlink(f"../results/{self.agents[0].GE_params['LOG_FOLDER']}", f"../results/latest", target_is_directory=True)
+        except FileExistsError:
+            os.unlink(f"../results/latest")
+            os.symlink(f"../results/{self.agents[0].GE_params['LOG_FOLDER']}", f"../results/latest", target_is_directory=True)
+
         file_formatter = logging.Formatter("%(levelname)s:%(message)s")
         file_handler = logging.FileHandler(
             filename=f"../results/{self.agents[0].GE_params['LOG_FOLDER']}/backend")
@@ -131,12 +137,15 @@ class TestBackend(Backend):
         self.update_gui()
         for i in range(num_of_agents):
 
-            if i == 0:
+            """if i == 0:
                 agent = EvoAgent("agent" + str(i), sense_radius=10, genome_storage_threshold=7, init_genome=GENOME,
                                  params_file=param_file, init_position=[6, 9])
             else:
                 agent = EvoAgent("agent" + str(i), sense_radius=10, genome_storage_threshold=7, init_genome=None,
-                                 params_file=param_file)
+                                 params_file=param_file)"""
+
+            agent = EvoAgent("agent" + str(i), sense_radius=10, genome_storage_threshold=7, init_genome=None,
+                             params_file=param_file)
 
             self.register_agent(agent)
         #food = [FoodSource("jidlo" + str(random.randint(0, 100)), ObjectType.FOOD, 2) for _ in range(1)]

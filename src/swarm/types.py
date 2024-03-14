@@ -3,7 +3,7 @@ from typing import List, Tuple, Union
 
 class ObjectType(enum.Enum):
     AGENT = "A"
-    OBJECT = "O"
+    OBJECT = "="
     FOOD = "F"
     HUB = "H"
     GENERIC = OBJECT
@@ -13,17 +13,16 @@ class ObjectType(enum.Enum):
     def str2enum(item: str) -> 'ObjectType':
         item = item.lower()
         retval: ObjectType
-        match item:
-            case "food":
-                retval = ObjectType.FOOD
-            case "hub" | "base":
-                retval = ObjectType.HUB
-            case "agent":
-                retval = ObjectType.AGENT
-            case "generic":
-                retval = ObjectType.GENERIC
-            case _:
-                retval = ObjectType.NOTYPE
+        if item == "food":
+            retval = ObjectType.FOOD
+        elif item == "hub" or item == "base":
+            retval = ObjectType.HUB
+        elif item == "agent":
+            retval = ObjectType.AGENT
+        elif item == "generic":
+            retval = ObjectType.GENERIC
+        else:
+            retval = ObjectType.NOTYPE
 
         return retval
 
@@ -40,29 +39,37 @@ class Direction(enum.Enum):
 
     @staticmethod
     def broad_direction(direction: 'Direction') -> List['Direction']:
+        if isinstance(direction, list):
+            if len(direction) > 1:
+                raise ValueError("Broad heading was used in place of normal heading")
+            else:
+                direction = direction[0]
         ret = ()
-        match direction:
-            case Direction.UP:
-                ret = (Direction.UP, Direction.LEFT, Direction.RIGHT)
-            case Direction.DOWN:
-                ret = (Direction.DOWN, Direction.LEFT, Direction.RIGHT)
-            case Direction.LEFT:
-                ret = (Direction.UP, Direction.DOWN, Direction.LEFT)
-            case Direction.RIGHT:
-                ret = (Direction.UP, Direction.DOWN, Direction.RIGHT)
+        if direction == Direction.UP:
+            ret = (Direction.UP, Direction.LEFT, Direction.RIGHT)
+        elif direction == Direction.DOWN:
+            ret = (Direction.DOWN, Direction.LEFT, Direction.RIGHT)
+        elif direction == Direction.LEFT:
+            ret = (Direction.UP, Direction.DOWN, Direction.LEFT)
+        elif direction == Direction.RIGHT:
+            ret = (Direction.UP, Direction.DOWN, Direction.RIGHT)
         return list(ret)
 
     @staticmethod
     def reverse(direction: 'Direction') -> 'Direction':
+        if isinstance(direction, list):
+            if len(direction) > 1:
+                raise ValueError("Broad heading was used in place of normal heading")
+            else:
+                direction = direction[0]
         ret = direction
-        match direction:
-            case Direction.UP:
-                ret = Direction.DOWN
-            case Direction.DOWN:
-                ret = Direction.UP
-            case Direction.RIGHT:
-                ret = Direction.LEFT
-            case Direction.LEFT:
-                ret = Direction.RIGHT
+        if direction == Direction.UP:
+            ret = Direction.DOWN
+        elif direction == Direction.DOWN:
+            ret = Direction.UP
+        elif direction == Direction.RIGHT:
+            ret = Direction.LEFT
+        elif direction == Direction.LEFT:
+            ret = Direction.RIGHT
         return ret
     

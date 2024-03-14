@@ -119,14 +119,18 @@ def heading_from_pos(pos_start, pos_goal, towards=True):
     return heading
 
 def pos_from_heading(pos, heading):
-    ret = list(pos)
-    match heading:
-        case Direction.UP:
-            ret[0] -= 1
-        case Direction.DOWN:
-            ret[0] += 1
-        case Direction.RIGHT:
-            ret[1] += 1
-        case Direction.LEFT:
-            ret[1] -= 1
-    return ret
+    ret = [coord for coord in pos]  # deep copy
+    if isinstance(heading, list):
+        if len(heading) > 1:
+            raise ValueError("Broad heading was used in place of normal heading")
+        else:
+            heading = heading[0]
+    if heading == Direction.UP:
+        ret[0] -= 1
+    elif heading == Direction.DOWN:
+        ret[0] += 1
+    elif heading == Direction.RIGHT:
+        ret[1] += 1
+    elif heading == Direction.LEFT:
+        ret[1] -= 1
+    return tuple(ret)

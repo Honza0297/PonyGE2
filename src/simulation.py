@@ -15,7 +15,7 @@ import  cProfile
 NUM_OF_AGENS = 100
 BOARD_SIZE = 100
 DETERMINISTIC = True  # False
-PARAM_FILE = "parameters.txt"   # "AG_params.txt" "parameters.txt
+PARAM_FILE = "AG_params.txt"   # "AG_params.txt" "parameters.txt
 if __name__ == '__main__':
 
     logging.basicConfig(level=logging.DEBUG)

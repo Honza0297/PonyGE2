@@ -38,7 +38,10 @@ def tournament(population, agent=None):
     while len(winners) < agent.GE_params['GENERATION_SIZE']:
         # Randomly choose TOURNAMENT_SIZE competitors from the given
         # population. Allows for re-sampling of individuals.
-        competitors = sample(available, agent.GE_params['TOURNAMENT_SIZE'])
+        try:
+            competitors = sample(available, agent.GE_params['TOURNAMENT_SIZE'])
+        except ValueError as e:
+            pass
         # Return the single best competitor.
         winners.append(max(competitors))
 

@@ -60,7 +60,6 @@ class Individual(object):
         :return: Whether or not the fitness of the current individual is
         greater than the comparison individual.
         """
-
         if np.isnan(self.fitness):
             return True
         elif np.isnan(other.fitness):
@@ -68,7 +67,6 @@ class Individual(object):
         else:
             return self.fitness < other.fitness if self.agent.GE_params[
                 'FITNESS_FUNCTION'].maximise else other.fitness < self.fitness
-
     def __le__(self, other):
         """
         Set the definition for comparison of two instances of the individual

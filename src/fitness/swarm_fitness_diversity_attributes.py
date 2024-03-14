@@ -5,7 +5,7 @@ import random
 import xml.etree.ElementTree as ET
 
 
-class swarm_fitness_diversity(base_ff):
+class swarm_fitness_diversity_attributes(base_ff):
     maximise = True
 
     def __init__(self):
@@ -17,7 +17,6 @@ class swarm_fitness_diversity(base_ff):
         # Initialise base fitness function class.
         super().__init__()
         # Simplified in comparison to Aadesh
-        # TODO need i import exact names (PPAMoveTowards instead of MoveTowards?) nebo tam mají být jen primitiva? nebo obojí?
         # NOTE Pravděpodobně jen to, co je v gramatice, ty dílčí ne
         self.execution_behaviors = ["IsVisitedBefore",
                                     "NeighbourObjects",
@@ -69,6 +68,16 @@ class swarm_fitness_diversity(base_ff):
         match_set = set(execution.keys()) & set(self.execution_behaviors)
         return len(match_set)
 
+    def get_attribute_fitness(self, ind):
+        fitness = 0
+        attributes = ind.code_tree.aliases["<root>"]["attributes"]
+        for attr in attributes:
+            # Subjectively chosen value of +3 if specified behavior is present
+            fitness += 5 if attributes[attr]["value"] else 0
+        if fitness != 0:
+            pass
+        return fitness
+        
     def evaluate(self, ind, **kwargs):
         # Copied one to one from Aadesh
         ind.phenotype = ind.phenotype.replace('[', '<')
@@ -96,5 +105,5 @@ class swarm_fitness_diversity(base_ff):
                 except KeyError:
                     self.execution[node_text] = 1
                 nodes.append(node_text)
-        fitness = self.calcualte_diversity()
+        fitness = self.calcualte_diversity() + self.get_attribute_fitness(ind)
         return fitness
